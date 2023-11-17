@@ -1,0 +1,47 @@
+#!/bin/bash
+auth_token="Authorization: token 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"
+HOME_DIR=$(dirname `readlink -f ~/.bashrc`)
+folder=smud-cli
+curr_dir=$(pwd)
+destination_folder=$HOME_DIR/$folder
+download_folder=$HOME_DIR/$folder-downloaded
+download_json_file=$download_folder/downloaded-info.json
+if [ -d "$download_folder" ];then
+   rm -rf $download_folder 
+fi
+
+mkdir $download_folder 
+cd $download_folder
+
+curl -H "$auth_token" https://api.github.com/repos/DIPSAS/smud-cli/contents/$folder -o $download_json_file
+
+if [ ! -f "$download_json_file" ];then
+    echo "Missing $$download_json_file file"    
+fi
+download_names=($(cat $download_json_file | sed -n 's/.*"name": *"\([^"]*\)".*/\1/p'))
+download_urls=$(cat $download_json_file   | sed -n 's/.*"download_url": *"\([^"]*\)".*/\1/p')
+i=-1
+for url in $download_urls; do
+    i=$((i+1))
+    file=${download_names[$i]}
+    downloaded_file=$(basename $url)
+    # echo "$name, $url $(basename $url)"
+    curl -H "$auth_token" $url -o $file # > /dev/null 2>&1
+done
+
+cd $curr_dir
+
+if [ -d $download_folder ]; then
+   chmod +x $download_folder/*.sh
+   if [ ! -d "$destination_folder" ];then
+      mkdir $destination_folder 
+   fi
+#    if [ -f "$download_json_file" ];then
+#      rm -f "$download_json_file"
+#    fi
+
+   cp $download_folder/.bash_aliases $destination_folder/ -r -u
+   cp $download_folder/*.* $destination_folder/ -r -u
+#    rm -rf $download_folder 
+   . $destination_folder/install-cli.sh
+fi
