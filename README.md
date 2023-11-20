@@ -1,6 +1,8 @@
 # smud-cli
 
-#### The `smud` CLI will help dealing with products in the GitOps repository.
+The `smud` CLI will make maintanance of your fork of DIPS' GitOps repository easier by providing simple commands for the most common tasks, such as:
+- Listing the versions wich products are installed in which environments in which versions.
+- Upgrading a set products at a time.
 
 Requirements:
 * linux computer or WSL
