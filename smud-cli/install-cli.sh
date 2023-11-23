@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 HOME_DIR=$(dirname `readlink -f ~/.bashrc`)
 smud_aliases=`cat ~/.bashrc | grep "~/smud-cli/.bash_aliases" -c`
 if [ $smud_aliases -eq 0 ]; then
@@ -16,7 +16,6 @@ BASEDIR=$(dirname "$0")
 
 if [ ! "$HOME_DIR/smud-cli" = "$BASEDIR" ]; then
     # echo "$BASEDIR"
-    chmod +x $BASEDIR/*.sh
     cp $BASEDIR/* ~/smud-cli/ -u > /dev/null 2>&1
     cp $BASEDIR/.bash_aliases ~/smud-cli/ -u > /dev/null 2>&1
 fi
