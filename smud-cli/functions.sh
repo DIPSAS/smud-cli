@@ -61,17 +61,27 @@ set_upstream()
         echo "${bold}smud set-upstream${normal}: Set upstream https://github.com/DIPSAS/DIPS-GitOps-Template.git"
         return
     fi
-    git remote add upstream https://github.com/DIPSAS/DIPS-GitOps-Template.git
+    remote_upstream=$(git config --get remote.upstream.url)
+    if [ ! $remote_upstream ]; then
+        remote_upstream="https://github.com/DIPSAS/DIPS-GitOps-Template.git"
+        git remote add upstream $remote_upstream
+        printf "${gray}Upstream configured with '$remote_upstream' ${normal}\n"
+    else
+        printf "${gray}Upstream alredy configured with '$remote_upstream' ${normal}\n"
+    fi
 }
 
 upstream()
 {
 
     if [ $help ]; then
-        echo "${bold}smud upstream${normal}: Fetch upstream/main"
+        echo "${bold}smud upstream${normal}: Fetch upstream"
         return
     fi
-
+    remote_upstream=$(git config --get remote.upstream.url)
+    if [ ! $remote_upstream ]; then
+        set_upstream
+    fi
     git fetch upstream
 }
 
@@ -90,5 +100,5 @@ update_cli()
     printf "${bold}smud update-cli${normal}: Download and update the smud CLI.\n"
     echo ""
 
-    . $(dirname "$0")/download-and-install-cli.sh
+    . $(dirname "$0")/download-and-install-cli.sh $(basename "$0")
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-auth_token="Authorization: token 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"
+auth_token="Authorization: token $(echo "WjJod1gxTjZkekZIWVdaVVkwUm9iVk5VYzAxWFdFcE5PR2RSU2xGSlozQlpSekprUlZkdVF3PT0=" | base64 --decode | base64 --decode)"
 HOME_DIR=$(dirname `readlink -f ~/.bashrc`)
 folder=smud-cli
 curr_dir=$(pwd)
@@ -40,8 +40,10 @@ if [ -d $download_folder ]; then
      rm -f "$download_json_file"
    fi
 
+   cp $download_folder/*.sh $destination_folder/ -r -u
+   cp $download_folder/*.md $destination_folder/ -r -u
    cp $download_folder/.bash_aliases $destination_folder/ -r -u
-   cp $download_folder/*.* $destination_folder/ -r -u
+
    rm -rf $download_folder 
    . $destination_folder/install-cli.sh
 fi

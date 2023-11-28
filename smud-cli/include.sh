@@ -7,12 +7,12 @@ get_arg()
     arg=""
     for key in $keys
     do
-        if [ ! $arg ];then
+        if [ ! "$arg" ];then
           arg=${ARGS[$key]}
         fi  
     done
 
-    if [ ! $arg ]; then
+    if [ ! "$arg" ]; then
         arg="$2"
     fi
 
@@ -21,6 +21,7 @@ get_arg()
 
 white='\033[1;37m' 
 magenta='\x1b[1;m'
+green='\x1b[22;32m'
 red='\x1b[22;31m'
 gray='\x1b[1;90m'
 yellow='\x1b[22;33m'
@@ -28,15 +29,24 @@ magenta='\033[38;5;53m'
 bold=$(tput bold)
 # bold=$white
 normal=$(tput sgr0)
-if [ $# -gt 0 ];then
 
+if [ $# -gt 0 ];then
+  has_args="true"  
   shift
 
   while [ $# -gt 0 ]; do
     s=$1
     IFS='=' read -r -a arg <<< "$s"
     value=${arg[1]};value="${value:-true}"
-    ARGS[${arg[0]}]=$value
+    c=$(echo $value | grep ' ' -c)
+    
+    if [ ! $c -eq  0 ]; then
+        value="\"$value\""
+    fi
+
+    key=${arg[0]}
+    # echo "$key *** $value"
+    ARGS[$key]=$value
     shift
   done
 fi
@@ -44,6 +54,8 @@ fi
 help=$(get_arg '--help,-h')
 separator=$(get_arg '--separator,-sep')
 col_separator=$(get_arg '--col-separator,-colsep', ' ')
+grep=$(get_arg '--grep')
+grep=$(echo $grep| sed -e 's/true//g')
 new=$(get_arg '--new')
 installed=$(get_arg '--installed,-I')
 hide_title=$(get_arg '--hide-title')
@@ -100,16 +112,27 @@ fi
 
 from_commit=$(get_arg '--from-commit,-FC')
 to_commit=$(get_arg '--to-commit,-TC')
-if [ ! $help ] && [ ! $installed ] && [ "$is_repo" ]; then
+if [ "$grep" ]; then
+    git_grep=$(echo $grep| sed -e 's/ /./g'| sed -e 's/"//g'| sed -e "s/'//g" )
+    git_grep=$(echo "--grep $git_grep")
+fi
+
+if [ $has_args ] && [ ! $help ] && [ ! $installed ] && [ "$is_repo" ]; then
+    default_branch=$(git config --list | grep -E 'branch.(main|master).remote' | sed -e 's/branch\.//g' -e 's/\.remote//g' -e 's/=origin//g')
+    can_do_git="true"
     if [ ! $from_commit ];then
-        from_commit=$(git log main -1  --pretty=format:"%H")
+        from_commit=$(git log $default_branch -1 --pretty=format:"%H")
     fi
 
     if [ ! $to_commit ] && [ ! $is_smud_dev_repo ];then
-        to_commit=$(git log upstream/main -1  --pretty=format:"%H")
+        if [ $(git config --get remote.upstream.url) ]; then
+            to_commit=$(git log upstream/main -1  --pretty=format:"%H")
+        fi
     fi
 
-    commit_range=$from_commit..$to_commit
+    if [ "$from_commit$to_commit" ]; then
+        commit_range=$from_commit..$to_commit
+    fi
 fi
 
 app_filter="products/$product/$stage/app.yaml"
@@ -119,9 +142,11 @@ diff_filter=''
 
 if [ $debug ];then
     echo "filter: $filter"
-    echo "from-commit: $from_commit"
-    echo "to-commit: $to_commit"
-    echo "commit range: $commit_range"
+    if [ "$can_do_git$commit_range" ]; then
+        echo "from-commit: $from_commit"
+        echo "to-commit: $to_commit"
+        echo "commit range: $commit_range"
+    fi
 fi
 
 

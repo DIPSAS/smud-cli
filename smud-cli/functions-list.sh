@@ -1,7 +1,8 @@
-#!/usr/bin/env bash
-
 list()
 {
+    if [ "$debug" ] && [ "$git_grep" ]; then
+        echo "git_grep: $git_grep"
+    fi
     if [ $help ]; then
         echo "${bold}smud list${normal} [options]: List ${bold}updated/new${normal} products ready for installation or current products installed."
         echo ""
@@ -91,15 +92,15 @@ list()
         echo "${red}'${pwd}' is not a git repository! ${normal}"
         exit
     fi
-
-    has_commits=$(git log $commit_range --max-count=1 --no-merges $diff_filter --pretty=format:"%H" -- $filter)
+    
+    has_commits=$(git log $commit_range --max-count=1 --no-merges $diff_filter $git_grep --pretty=format:"%H" -- $filter)
     if [ ! $has_commits ]; then
         printf "${gray}No products found.${normal}\n"   
         exit 
     fi
 
     if [ "$can_list_direct" ]; then
-        git --no-pager log $commit_range --reverse --date=iso --no-merges $diff_filter --pretty=format:"%C(#808080)%ad%Creset$col_separator%C(yellow)%h%Creset$col_separator$filter_product_name%s$separator" -- $filter
+        git --no-pager log $commit_range --reverse --date=iso --no-merges $diff_filter $git_grep --pretty=format:"%C(#808080)%ad%Creset$col_separator%C(yellow)%h%Creset$col_separator$filter_product_name%s$separator" -- $filter
         echo ""
         return
     fi
@@ -174,7 +175,7 @@ list()
                 echo "Show commit $commit $product_name"
             fi
 
-            git log $commit --max-count=1 --date=iso --no-merges --pretty=format:"%C(#808080)%ad%Creset$col_separator%C(yellow)%h%Creset$col_separator$product_name%s$separator"
+            git log $commit --max-count=1 --date=iso --no-merges $git_grep --pretty=format:"%C(#777777)%ad%Creset$col_separator%C(yellow)%h%Creset$col_separator$product_name%s$separator"
         fi
     done    
 }
