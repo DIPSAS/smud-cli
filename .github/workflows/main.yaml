@@ -1,0 +1,94 @@
+﻿name: 'Release smud CLI'
+
+on:
+  workflow_dispatch:  # click the button on Github repo!
+    
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/README.md"
+
+jobs:
+  release_smud_cli:
+    strategy:
+      matrix:
+        os: [ ubuntu-latest ]
+        # os: [ ubuntu-latest, macos-latest, windows-latest ]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 360
+    env:
+      BUILD_ID: ${{ github.run_number }}
+    name: Release smud CLI
+    steps:
+      # REQUIRED step
+      # Step 1: run a standard checkout action, provided by github
+      - name: Checkout target repo
+        uses: actions/checkout@v3
+        with:
+          # optional: set the branch to checkout,
+          # sync action checks out your 'target_sync_branch' anyway
+          ref: main
+          # REQUIRED if your upstream repo is private (see wiki)
+          persist-credentials: false
+      - name: Parse Changelog
+        id: changelog
+        uses: ocavue/changelog-parser-action@v1
+        with:
+          filePath: "./CHANGELOG.md"      
+      - name: Export version to variable
+        run: echo "CLI_VERSION=${{ steps.changelog.outputs.latestVersion }}" >> $GITHUB_ENV
+        shell: bash
+      - name: Export DEST folder to variable
+        run: echo "DEST=dist" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Export ZIP FILE to variable
+        run: echo "ZIP=${{ env.DEST }}/smud-cli-${{ env.CLI_VERSION }}-${{ env.BUILD_ID }}.${{ matrix.os }}.zip" >> $GITHUB_ENV
+        shell: bash
+      - name: Export PAT
+        run: echo "PAT=$(echo "WjJod1gxTjZkekZIWVdaVVkwUm9iVk5VYzAxWFdFcE5PR2RSU2xGSlozQlpSekprUlZkdVF3PT0=" | base64 --decode | base64 --decode)" >> $GITHUB_ENV
+        shell: bash
+
+
+      - name: Build Package
+        shell: bash
+        run: |
+          mkdir ${{ env.DEST }}
+          zip -rj ${{ env.ZIP }} smud-cli/* CHANGELOG.md
+
+      - name: Calculate SHA256 checksum
+        run: |-
+          if command -v shasum 2>/dev/null 1>&2; then
+            for filename in *.zip; do shasum -a 256 "${filename}" | tee "${filename}.sha256" ; done
+          else
+            for filename in *.zip; do certutil -hashfile "${filename}" SHA256 | tee "${filename}.sha256" ; done
+          fi
+
+        shell: bash
+        working-directory: ${{ env.DEST }}
+
+      - name: Generate Changelog
+        run: curl -s https://api.github.com/repos/DIPSAS/spud-cli/releases/latest | jq -r 'select(.prerelease == false) | .body[0:]' > ${{ github.workspace }}-CHANGELOG.txt
+
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: smud-cli-${{ matrix.os }}
+          path: ${{ env.ZIP }}*
+
+      - name: Release
+        uses: softprops/action-gh-release@v0.1.15
+        if: github.ref == 'refs/heads/main'
+        with:
+          tag_name: v${{ env.CLI_VERSION }}-${{ env.BUILD_ID }}
+          body_path: ${{ github.workspace }}-CHANGELOG.txt
+          files: ${{ env.ZIP }}*
+          token: ${{ env.PAT }}
+
+      - name: Latest
+        uses: softprops/action-gh-release@v0.1.15
+        if: github.ref == 'refs/heads/main'
+        with:
+          tag_name: Latest
+          files: ${{ env.ZIP }}*
+          token: ${{ env.PAT }}
