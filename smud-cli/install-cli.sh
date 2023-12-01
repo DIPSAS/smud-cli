@@ -39,8 +39,11 @@ if [ ! "$DEST_DIR" = "$BASEDIR" ]; then
     # echo "BASEDIR: $BASEDIR"
     
     cp $BASEDIR/*.sh $DEST_DIR/  > /dev/null 2>&1
-    cp $BASEDIR/*.md $DEST_DIR/ -u > /dev/null 2>&1
     cp $BASEDIR/.bash_aliases $DEST_DIR/ -u > /dev/null 2>&1
+
+    if [ -f "$BASEDIR/CHANGELOG.md" ];then
+      cp $BASEDIR/*.md $DEST_DIR/ -u > /dev/null 2>&1
+    fi   
 
     # ls -la $DEST_DIR/*
 fi

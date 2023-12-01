@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 auth_token="Authorization: token $(echo "WjJod1gxTjZkekZIWVdaVVkwUm9iVk5VYzAxWFdFcE5PR2RSU2xGSlozQlpSekprUlZkdVF3PT0=" | base64 --decode | base64 --decode)"
 HOME_DIR=$(dirname `readlink -f ~/.bashrc`)
+VERSION="LATEST"
 folder=smud-cli
 curr_dir=$(pwd)
 destination_folder=$HOME_DIR/$folder
@@ -41,8 +42,11 @@ if [ -d $download_folder ]; then
    fi
 
    cp $download_folder/*.sh $destination_folder/ -r -u
-   cp $download_folder/*.md $destination_folder/ -r -u
    cp $download_folder/.bash_aliases $destination_folder/ -r -u
+
+   if [ -f "$download_folder/CHANGELOG.md" ];then
+      cp $download_folder/*.md $destination_folder/ -r -u
+   fi   
 
    rm -rf $download_folder 
    . $destination_folder/install-cli.sh
