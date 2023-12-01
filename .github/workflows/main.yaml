@@ -43,11 +43,11 @@ jobs:
         shell: bash
 
       - name: Export DEST_BASE_FILENAME to variable
-        run: echo "DEST_BASE_FILENAME=${{ env.DEST_FOLDER }}/smud-cli-${{ env.CLI_VERSION }}-${{ env.BUILD_ID }}" >> $GITHUB_ENV
+        run: echo "DEST_BASE_FILENAME=${{ env.DEST_FOLDER }}/Release/smud-cli-${{ env.CLI_VERSION }}-${{ env.BUILD_ID }}" >> $GITHUB_ENV
         shell: bash
 
-      - name: Export DEST_FILES to variable
-        run: echo "DEST_FILES=${{ env.DEST_FOLDER }}/*.*" >> $GITHUB_ENV
+      - name: Export DEST_BASE_FILENAME_Latest to variable
+        run: echo "DEST_BASE_FILENAME_Latest=${{ env.DEST_FOLDER }}/Latest/smud-cli-Latest" >> $GITHUB_ENV
         shell: bash
 
       - name: Export PAT
@@ -58,50 +58,64 @@ jobs:
       - name: Build Package
         shell: bash
         run: |
-          mkdir $DEST_FOLDER
+          mkdir ${{ env.DEST_FOLDER }}
 
+          # Release
+          mkdir ${{ env.DEST_FOLDER }}/Release
           zip -rj  ${{ env.DEST_BASE_FILENAME }}.zip smud-cli/* CHANGELOG.md
+          cp smud-cli/download-and-install-cli.sh ${{ env.DEST_FOLDER }}/Release/download-and-install-cli.sh
 
-          zip -Arj ${{ env.DEST_BASE_FILENAME }}.exe smud-cli/* CHANGELOG.md
+          # Latest
+          mkdir ${{ env.DEST_FOLDER }}/Latest
+          zip -rj ${{ env.DEST_BASE_FILENAME_Latest }}.zip smud-cli/* CHANGELOG.md
+          cp smud-cli/download-and-install-cli.sh ${{ env.DEST_FOLDER }}/Latest/download-and-install-cli.sh
 
-          cp smud-cli/download-and-install-cli.sh ${{ env.DEST_FOLDER }}/download-and-install-cli.sh
-
-      - name: Calculate SHA256 checksum
+      - name: Calculate Release SHA256 checksum
         run: |-
           if command -v shasum 2>/dev/null 1>&2; then
             for filename in *.*; do shasum -a 256 "${filename}" | tee "${filename}.sha256" ; done
           else
             for filename in *.*; do certutil -hashfile "${filename}" SHA256 | tee "${filename}.sha256" ; done
           fi
-        working-directory: ${{ env.DEST_FOLDER }}
+        working-directory: ${{ env.DEST_FOLDER }}/Release
+        shell: bash
+
+      - name: Calculate Latest SHA256 checksum
+        run: |-
+          if command -v shasum 2>/dev/null 1>&2; then
+            for filename in *.*; do shasum -a 256 "${filename}" | tee "${filename}.sha256" ; done
+          else
+            for filename in *.*; do certutil -hashfile "${filename}" SHA256 | tee "${filename}.sha256" ; done
+          fi
+        working-directory: ${{ env.DEST_FOLDER }}/Latest
         shell: bash
 
       - name: Generate Changelog
         run: curl -s https://api.github.com/repos/DIPSAS/spud-cli/releases/latest | jq -r 'select(.prerelease == false) | .body[0:]' > ${{ github.workspace }}-CHANGELOG.txt
 
 
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: smud-cli-artifacts
-          path: ${{ env.DEST_FILES}}
+      # - name: Upload Artifacts
+      #   uses: actions/upload-artifact@v3
+      #   with:
+      #     name: smud-cli-artifacts
+      #     path: |
+      #       ${{ env.DEST_FOLDER}}/Release/*.*
+      #       ${{ env.DEST_FOLDER}}/Latest/*.*
 
       - name: Release
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v0.1.15
         with:
-          name: v${{ env.CLI_VERSION }}-${{ env.BUILD_ID }}
-          tag_name: v${{ env.CLI_VERSION }}
+          tag_name: v${{ env.CLI_VERSION }}-${{ env.BUILD_ID }}
           body_path: ${{ github.workspace }}-CHANGELOG.txt
           token: ${{ env.PAT }}
-          files: ${{ env.DEST_FILES}}
+          files: ${{ env.DEST_FOLDER}}/Release/*.*
 
       - name: Latest
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v0.1.15
         with:
-          name: Latest
           tag_name: Latest
           body_path: ${{ github.workspace }}-CHANGELOG.txt
           token: ${{ env.PAT }}
-          files: ${{ env.DEST_FILES}}
+          files: ${{ env.DEST_FOLDER}}/Latest/*.*
