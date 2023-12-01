@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-auth_token="Authorization: token $(echo "WjJod1gxTjZkekZIWVdaVVkwUm9iVk5VYzAxWFdFcE5PR2RSU2xGSlozQlpSekprUlZkdVF3PT0=" | base64 --decode | base64 --decode)"
 HOME_DIR=$(dirname `readlink -f ~/.bashrc`)
 VERSION="LATEST"
 folder=smud-cli
@@ -14,7 +13,7 @@ fi
 mkdir $download_folder 
 cd $download_folder
 
-curl --ssl-no-revoke -H "$auth_token" https://api.github.com/repos/DIPSAS/smud-cli/contents/$folder --no-progress-meter -o $download_json_file
+curl --ssl-no-revoke https://api.github.com/repos/DIPSAS/smud-cli/contents/$folder --no-progress-meter -o $download_json_file
 
 if [ ! -f "$download_json_file" ];then
     echo "Missing $$download_json_file file"    
@@ -27,7 +26,7 @@ for url in $download_urls; do
     file=${download_names[$i]}
     downloaded_file=$(basename $url)
     printf "${gray}Download '$file' file: ${normal}\n"   
-    curl --ssl-no-revoke -H "$auth_token" $url -o $file # > /dev/null 2>&1
+    curl --ssl-no-revoke $url -o $file # > /dev/null 2>&1
     echo ""
 done
 
