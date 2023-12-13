@@ -44,3 +44,4 @@ Use the `--help` for investigating commands and options available:
 ```sh
 smud --help
 ```
+
