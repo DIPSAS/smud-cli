@@ -1,6 +1,20 @@
 #!/usr/bin/env bash
 declare -A ARGS
 
+get_changelog_file()
+{
+    BASEDIR=$(dirname "$0")
+    file=$BASEDIR/CHANGELOG.md
+
+    if [ ! -f $file ]; then
+        BASEDIR=$(dirname "$BASEDIR")
+        file=$BASEDIR/CHANGELOG.md
+    fi
+    if [ -f $file ]; then
+        echo "$file"    
+    fi
+}
+
 get_arg()
 {
     keys=$(echo $1 | tr ',' '\n')
@@ -51,7 +65,7 @@ if [ $# -gt 0 ];then
   done
 fi
 
-examples=$(get_arg '--examples,-ex')
+examples=$(get_arg '--examples,--ex,-ex')
 help=$(get_arg '--help,-h' "$examples")
 separator=$(get_arg '--separator,-sep')
 col_separator=$(get_arg '--col-separator,-colsep', ' ')
@@ -125,6 +139,7 @@ if [ "$grep" ]; then
     git_grep=$(echo "--grep $git_grep")
 fi
 
+default_branch="main"
 if [ $has_args ] && [ ! $help ] && [ ! $installed ] && [ "$is_repo" ]; then
     default_branch=$(git config --list | grep -E 'branch.(main|master).remote' | sed -e 's/branch\.//g' -e 's/\.remote//g' -e 's/=origin//g')
     can_do_git="true"
@@ -134,7 +149,10 @@ if [ $has_args ] && [ ! $help ] && [ ! $installed ] && [ "$is_repo" ]; then
 
     if [ ! $to_commit ] && [ ! $is_smud_dev_repo ];then
         if [ $(git config --get remote.upstream.url) ]; then
-            to_commit=$(git log upstream/main -1  --pretty=format:"%H")
+            to_commit=$(git log upstream/$default_branch -1 --pretty=format:"%H" > /dev/null 2>&1)
+            if [ $? -eq 0 ];then
+                to_commit=$(git log upstream/$default_branch -1 --pretty=format:"%H")
+            fi
         fi
     fi
 
@@ -159,17 +177,17 @@ filter=":products/$product/$stage/** products/$product/product.yaml"
 diff_filter=''
 
 if [ $debug ];then
-    echo "filter: $filter"
+    printf "${gray}filter: $filter${normal}\n"
     if [ "$can_do_git" ]; then
         if [ "$commit_range" ]; then
-            echo "from-commit: $from_commit"
-            echo "to-commit: $to_commit"
-            echo "commit range: $commit_range"
+            if [ $from_commit ]; then printf "${gray}from-commit: $from_commit${normal}\n"; fi
+            if [ $to_commit ]; then printf "${gray}to-commit: $to_commit${normal}\n"; fi
+            printf "${gray}commit range: $commit_range${normal}\n"
         fi
         if [ "$date_range" ]; then
-            echo "from-date: $from_date"
-            echo "to-date: $to_date"
-            echo "date range: $date_range"
+            if [ $from_date ]; then printf "${gray}from-date: $from_date${normal}\n"; fi
+            if [ $to_date ]; then printf "${gray}from-date: $to_date${normal}\n"; fi
+            printf "${gray}date range: $date_range${normal}\n"
         fi
     fi
 fi

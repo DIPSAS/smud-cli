@@ -19,7 +19,8 @@ else
         "--help"        ) help;;
         "version"       ) version;;
         "set-upstream"  ) set_upstream;;
-        "upstream"      ) upstream;;
+        "upstream"      ) upstream $command;;
+        "init"          ) upstream $command;;
         "update-cli"    ) update_cli;;
         "list"          ) list;;
         "apply"         ) apply;;

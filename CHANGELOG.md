@@ -1,3 +1,7 @@
+## Version 1.0.4
+- Added init functiion with improvements. 
+- Improved help messages as well
+
 ## Version 1.0.3
 - Improved help functions
 - Improved how upstream is configured or removed
