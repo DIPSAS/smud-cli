@@ -50,7 +50,7 @@ apply()
     fi
 
     if [ ! "$is_repo" ]; then
-        echo "${red}'${pwd}' is not a git repository! ${normal}"
+        printf "${red}'$(pwd)' is not a git repository! ${normal}\n"
         return
     fi
 

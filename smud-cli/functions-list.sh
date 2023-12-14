@@ -101,7 +101,7 @@ list()
     fi
 
     if [ ! "$is_repo" ]; then
-        echo "${red}'${pwd}' is not a git repository! ${normal}"
+        printf "${red}'$(pwd)' is not a git repository! ${normal}\n"
         exit
     fi
     git_log="git log $commit_range $date_range --max-count=1 --no-merges $git_grep $diff_filter --pretty=format:\"%H\" -- $filter"
@@ -112,7 +112,6 @@ list()
     has_commits="$(git log $commit_range $date_range --max-count=1 --no-merges $git_grep $diff_filter --pretty=format:\"%H\" -- $filter)"
     if [ ! $has_commits ]; then
         printf "${gray}No products found.${normal}\n"   
-        printf "${gray}has_commit=[$has_commits]${normal}\n"   
         exit 
     fi
     if [ "$can_list_direct" ]; then
