@@ -56,14 +56,29 @@ version()
 
 set_upstream()
 {
-
+    default_upstream="https://github.com/DIPSAS/DIPS-GitOps-Template.git"
     if [ $help ]; then
-        echo "${bold}smud set-upstream${normal}: Set upstream https://github.com/DIPSAS/DIPS-GitOps-Template.git"
+        echo "${bold}smud set-upstream${normal}: Set upstream"
+        printf "With Only ${green}set-upstream${normal}, Upstream '$default_upstream' wil be configured. \n"
+        printf "With ${green}set-upstream <value>${normal}, Upstream '<value>' will be configured. \n"
+        printf "With ${green}set-upstream -${normal}, Upstream will be removed. \n"
         return
     fi
+    new_value="${arg[0]}"
     remote_upstream=$(git config --get remote.upstream.url)
-    if [ ! $remote_upstream ]; then
-        remote_upstream="https://github.com/DIPSAS/DIPS-GitOps-Template.git"
+    if [ $new_value ]; then
+        remote_upstream=$new_value
+        if [ $remote_upstream ]; then
+            git remote rm upstream
+        fi    
+        if [ "$remote_upstream" = "-" ]; then
+            printf "${gray}Upstream is removed${normal}\n"
+        else
+            git remote add upstream $remote_upstream
+            printf "${gray}Upstream configured with '$remote_upstream' ${normal}\n"
+        fi
+    elif [ ! $remote_upstream ]; then
+        remote_upstream=$default_upstream
         git remote add upstream $remote_upstream
         printf "${gray}Upstream configured with '$remote_upstream' ${normal}\n"
     else
