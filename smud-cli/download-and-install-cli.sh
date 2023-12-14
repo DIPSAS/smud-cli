@@ -6,6 +6,7 @@ curr_dir=$(pwd)
 destination_folder=$HOME_DIR/$folder
 download_folder=$HOME_DIR/$folder-downloaded
 download_json_file=$download_folder/downloaded-info.json
+changelog_download_json_file=$download_folder/changelog-downloaded-info.json
 if [ -d "$download_folder" ];then
    rm -rf $download_folder 
 fi
@@ -29,6 +30,15 @@ for url in $download_urls; do
     curl --ssl-no-revoke $url -o $file # > /dev/null 2>&1
     echo ""
 done
+
+curl --ssl-no-revoke https://api.github.com/repos/DIPSAS/smud-cli/contents/CHANGELOG.md --no-progress-meter -o $changelog_download_json_file
+changelog_name=($(cat $changelog_download_json_file | sed -n 's/.*"name": *"\([^"]*\)".*/\1/p'))
+changelog_download_url=$(cat $changelog_download_json_file   | sed -n 's/.*"download_url": *"\([^"]*\)".*/\1/p')
+
+printf "${gray}Download '$changelog_name' file: ${normal}\n"   
+curl --ssl-no-revoke $changelog_download_url -o $changelog_name # > /dev/null 2>&1
+
+rm -f "$changelog_download_json_file"
 
 cd $curr_dir
 
