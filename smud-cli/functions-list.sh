@@ -23,6 +23,15 @@ list()
         echo "      Select only products ${bold}from${normal} a specific commit"
         echo "  --to-commit,-TC:"
         echo "      Select only products ${bold}to${normal} a specific commit"
+        echo "  --from-date,-FD:"
+        echo "      Select only products ${bold}from${normal} a specific date"
+        echo "      Dateformat DD-MM-YYYY HH:MM:SS"
+        echo "  --to-date,-TD:"
+        echo "      Select only products ${bold}to${normal} a specific date"
+        echo "      Dateformat DD-MM-YYYY HH:MM:SS"
+        echo "  --version,-V:"
+        echo "      Select only products ${bold}with${normal} a specific version"
+        echo "      -G'chartVersion: $version' | -S'chartVersion: $version'"
         echo ""
         echo "Examples:"
         echo "  # List all updated products on all stages"
@@ -77,9 +86,9 @@ list()
                 fi  
                 no_products_found=""
                 date=`ls -l --time-style=long-iso $app_yaml | awk '{print $6,$7}'| sort   ` 
-                version=`cat $app_yaml | grep chartVersion: | cut --delimiter=: -f 2 | xargs | tr -d ['\n','\r'] | cut -f1 --delimiter=#`
-                version=`printf %-14s "$version"`
-                printf "${gray}$date${normal}$col_separator${yellow}$version${normal}$col_separator${normal}Product ${bold}$app_name${normal} from ${bold}$app_stage${normal} stage\n"
+                grep_for_version=`cat $app_yaml | grep chartVersion: | cut --delimiter=: -f 2 | xargs | tr -d ['\n','\r'] | cut -f1 --delimiter=#`
+                grep_for_version=`printf %-14s "$grep_for_version"`
+                printf "${gray}$date${normal}$col_separator${yellow}$grep_for_version${normal}$col_separator${normal}Product ${bold}$app_name${normal} from ${bold}$app_stage${normal} stage\n"
             done
         fi
         if [ $no_products_found ]; then
@@ -92,15 +101,24 @@ list()
         echo "${red}'${pwd}' is not a git repository! ${normal}"
         exit
     fi
-    
-    has_commits=$(git log $commit_range --max-count=1 --no-merges $diff_filter $git_grep --pretty=format:"%H" -- $filter)
+    git_log="git log $commit_range $date_range --max-count=1 --no-merges $git_grep $diff_filter --pretty=format:\"%H\" -- $filter"
+
+    if [ $verbose ]; then
+        printf "${gray}$(echo "$git_log" | sed -e 's/%/%%/g')${normal}\n"    
+    fi
+    has_commits="$(git log $commit_range $date_range --max-count=1 --no-merges $git_grep $diff_filter --pretty=format:\"%H\" -- $filter)"
     if [ ! $has_commits ]; then
         printf "${gray}No products found.${normal}\n"   
+        printf "${gray}has_commit=[$has_commits]${normal}\n"   
         exit 
     fi
-
     if [ "$can_list_direct" ]; then
-        git --no-pager log $commit_range --reverse --date=iso --no-merges $diff_filter $git_grep --pretty=format:"%C(#808080)%ad%Creset$col_separator%C(yellow)%h%Creset$col_separator$filter_product_name%s$separator" -- $filter
+        git_log="git --no-pager log $commit_range $date_range --reverse --date=iso --no-merges $git_grep $diff_filter --pretty=format:\"%C(#808080)%ad%Creset$col_separator%C(yellow)%h%Creset$col_separator$filter_product_name%s$separator\" -- $filter"
+        if [ $verbose ]; then
+            printf "${gray}$(echo "$git_log" | sed -e 's/%/%%/g')${normal}\n"    
+        fi
+        git --no-pager log $commit_range $date_range --reverse --date=iso --no-merges $git_grep $diff_filter --pretty=format:"%C(#808080)%ad%Creset$col_separator%C(yellow)%h%Creset$col_separator$filter_product_name%s$separator" -- $filter
+        
         echo ""
         return
     fi

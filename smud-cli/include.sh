@@ -60,13 +60,21 @@ new=$(get_arg '--new')
 installed=$(get_arg '--installed,-I')
 hide_title=$(get_arg '--hide-title')
 silent=$(get_arg '--silent')
-verbose=$(get_arg '--verbose,-h')
-debug=$(get_arg '--debug,-h' "$verbose")
+verbose=$(get_arg '--verbose')
+debug=$(get_arg '--debug' "$verbose")
 product=$(get_arg '--product,-P' '**')
+
+version=$(get_arg '--version,-V')
+from_commit=$(get_arg '--from-commit,-FC')
+to_commit=$(get_arg '--to-commit,-TC')
+from_date=$(get_arg '--from-date,-FD')
+to_date=$(get_arg '--to-date,-TD')
+
 development=$(get_arg '--development,-D')
 external_test=$(get_arg '--external-test,-ET')
 internal_test=$(get_arg '--internal-test,-IT')
 production=$(get_arg '--production,-PROD')
+
 stage=$(get_arg '--stage,-S' '*')
 if [ $external_test ]; then
     stage="external-test"
@@ -77,6 +85,7 @@ elif [ $internal_test ]; then
 elif [ $development ]; then   
     stage="development"
 fi
+
 
 selected_stage=$stage
 if [ "$selected_stage" = "*" ]; then
@@ -110,8 +119,6 @@ if [ $verbose ];then
     echo "can_list_direct=$can_list_direct, is_smud_gitops_repo=$is_smud_gitops_repo, filter_product_name=$filter_product_name, new=$new"
 fi
 
-from_commit=$(get_arg '--from-commit,-FC')
-to_commit=$(get_arg '--to-commit,-TC')
 if [ "$grep" ]; then
     git_grep=$(echo $grep| sed -e 's/ /./g'| sed -e 's/"//g'| sed -e "s/'//g" )
     git_grep=$(echo "--grep $git_grep")
@@ -120,7 +127,7 @@ fi
 if [ $has_args ] && [ ! $help ] && [ ! $installed ] && [ "$is_repo" ]; then
     default_branch=$(git config --list | grep -E 'branch.(main|master).remote' | sed -e 's/branch\.//g' -e 's/\.remote//g' -e 's/=origin//g')
     can_do_git="true"
-    if [ ! $from_commit ];then
+    if [ ! "$from_commit" ] && [ ! "$from_date" ]; then
         from_commit=$(git log $default_branch -1 --pretty=format:"%H")
     fi
 
@@ -133,6 +140,16 @@ if [ $has_args ] && [ ! $help ] && [ ! $installed ] && [ "$is_repo" ]; then
     if [ "$from_commit$to_commit" ]; then
         commit_range=$from_commit..$to_commit
     fi
+    if [ "$from_date" ]; then
+        date_range="--since $(echo $from_date| sed -e 's/ /./g')" 
+    fi
+    if [ "$to_date" ]; then
+        date_range="$date_range --before $(echo $to_date| sed -e 's/ /./g')" 
+    fi
+    if [ "$version" ]; then
+        git_grep_version=-GchartVersion:.$version
+        git_grep="$git_grep $git_grep_version"
+    fi
 fi
 
 app_filter="products/$product/$stage/app.yaml"
@@ -142,10 +159,17 @@ diff_filter=''
 
 if [ $debug ];then
     echo "filter: $filter"
-    if [ "$can_do_git$commit_range" ]; then
-        echo "from-commit: $from_commit"
-        echo "to-commit: $to_commit"
-        echo "commit range: $commit_range"
+    if [ "$can_do_git" ]; then
+        if [ "$commit_range" ]; then
+            echo "from-commit: $from_commit"
+            echo "to-commit: $to_commit"
+            echo "commit range: $commit_range"
+        fi
+        if [ "$date_range" ]; then
+            echo "from-date: $from_date"
+            echo "to-date: $to_date"
+            echo "date range: $date_range"
+        fi
     fi
 fi
 
