@@ -117,3 +117,16 @@ update_cli()
 
     . $(dirname "$0")/download-and-install-cli.sh $(basename "$0")
 }
+
+
+show_date_help()
+{
+    s=$1
+    echo "      A specific date:"
+    echo "        --$s='<DD.MM.YYYY HH:MM:SS +TZ>'"
+    echo "        --$s='13.11.2023 08:00:00 +0000'"
+    echo "      or relative dates:"
+    echo "        --$s=today|tomorrow|yesterday"
+    echo "        --$s='1 week ago|5 days ago|1 year ago'"
+    
+}

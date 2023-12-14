@@ -51,7 +51,8 @@ if [ $# -gt 0 ];then
   done
 fi
 
-help=$(get_arg '--help,-h')
+examples=$(get_arg '--examples,-ex')
+help=$(get_arg '--help,-h' "$examples")
 separator=$(get_arg '--separator,-sep')
 col_separator=$(get_arg '--col-separator,-colsep', ' ')
 grep=$(get_arg '--grep')

@@ -15,6 +15,15 @@ apply()
         echo "      Apply only products ${bold}from${normal} a specific commit"
         echo "  --to-commit=,-TC=:"
         echo "      Apply only products ${bold}to${normal} a specific commit"
+        echo "  --from-date,-FD:"
+        echo "      Apply only products ${bold}from${normal} a specific date"
+        show_date_help "from-date"
+        echo "  --to-date,-TD:"
+        echo "      Apply only products ${bold}to${normal} a specific date"
+        show_date_help "to-date"
+        echo "  --version,-V:"
+        echo "      Apply only products ${bold}with${normal} a specific version"
+        echo "      -G'chartVersion: $version' | -S'chartVersion: $version'"
         echo "  --stage=, -S=:"
         echo "      Apply only products on selected stage."
         echo "  --external-test,-ET:"
@@ -28,11 +37,15 @@ apply()
         echo "      If --remote is used, the default-branch will be used"
         echo "  --undo=<commit>:"
         echo "      Undo all changes back to specific commit"
-        echo ""
-        echo "Examples:"
-        echo "  # Apply all audit-product commits on all stages"
-        echo "  smud apply --product=audit --remote=main"
-        echo ""
+        echo "  --examples,-ex:"
+        echo "      Show examples"
+        if [ "$examples" ]; then 
+            echo ""
+            echo "Examples:"
+            echo "  # Apply all audit-product commits on all stages"
+            echo "  smud apply --product=audit --remote=main"
+            echo ""
+        fi
         return
     fi
 
