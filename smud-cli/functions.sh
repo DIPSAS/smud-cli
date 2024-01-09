@@ -181,3 +181,25 @@ show_date_help()
     echo "        --$s='1 week ago|5 days ago|1 year ago'"
     
 }
+
+show_gitopd_changes() 
+{
+    printf "${white}List changes in Gitops model:${normal}\n"
+    filter=":applicationsets-staged gitops-engine/argo environments/templates CHANGELOG.md"
+
+    has_commits="$(git log $commit_range $date_range --max-count=1 --no-merges $git_grep $diff_filter --pretty=format:\"%H\" -- $filter)"
+
+    if [ ! $has_commits ]; then
+        printf "${gray}No changes found.${normal}\n"   
+        return
+    fi
+    filter=":CHANGELOG.md"
+    echo ""
+    commits=$(git log $commit_range $date_range --reverse --no-merges $git_grep $diff_filter --pretty=format:"%H" -- $filter)
+    for commit in $commits
+    do 
+        git show $commit:CHANGELOG.md
+        return
+    done
+    return
+}

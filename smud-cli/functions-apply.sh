@@ -54,6 +54,13 @@ apply()
         return
     fi
 
+    if [ ! "$product" ]; then
+        echo "Missing options:"
+        echo "  Products must be specified by [--products=, --product=, -P=] or [--all, -A]"
+        return
+    fi
+
+
     has_commits=$(git log $commit_range --max-count=1 --no-merges $diff_filter $git_grep --pretty=format:"%H" -- $filter)
     if [ ! $has_commits ]; then
         printf "${gray}No products found.${normal}\n"   

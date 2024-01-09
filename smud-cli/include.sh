@@ -65,6 +65,8 @@ if [ $# -gt 0 ];then
   done
 fi
 
+curr_dir=$(pwd)
+
 examples=$(get_arg '--examples,--ex,-ex')
 help=$(get_arg '--help,-h' "$examples")
 separator=$(get_arg '--separator,-sep')
@@ -77,7 +79,8 @@ hide_title=$(get_arg '--hide-title')
 silent=$(get_arg '--silent')
 verbose=$(get_arg '--verbose')
 debug=$(get_arg '--debug' "$verbose")
-product=$(get_arg '--product,-P' '**')
+product=$(get_arg '--products,--product,-P')
+all=$(get_arg '--all,-A')
 
 version=$(get_arg '--version,-V')
 from_commit=$(get_arg '--from-commit,-FC')
@@ -100,6 +103,8 @@ elif [ $internal_test ]; then
 elif [ $development ]; then   
     stage="development"
 fi
+
+
 
 
 selected_stage=$stage
@@ -170,14 +175,41 @@ if [ $has_args ] && [ ! $help ] && [ ! $installed ] && [ "$is_repo" ]; then
         git_grep="$git_grep $git_grep_version"
     fi
 fi
+if [ "$all" ]; then
+    product="**"
+fi
+c=$(echo $product | grep ',' -c)
+if [ ! $c -eq  0 ]; then
+    products=$(echo $product| sed -e 's/,/ /g')    
+    installed_files_filter=""
+    filter=""
+    for p in $products
+    do
+        if [ "$installed_files_filter" ];then
+            installed_files_filter="$installed_files_filter products/$p/$stage/app.yaml"
+        else
+            installed_files_filter="products/$p/$stage/app.yaml"
+        fi
 
-app_filter="products/$product/$stage/app.yaml"
+        if [ ! "$filter" ];then
+            filter=":products/$p/$stage/** products/$p/product.yaml"
+        else
+            filter="$filter products/$p/$stage/** products/$p/product.yaml"
+        fi
+        
+    done
+else    
+    installed_files_filter="products/$product/$stage/app.yaml"
+    filter=":products/$product/$stage/** products/$product/product.yaml"
+fi
 
-filter=":products/$product/$stage/** products/$product/product.yaml"
 diff_filter=''
 
 if [ $debug ];then
     printf "${gray}filter: $filter${normal}\n"
+    if [ "$installed" ]; then
+        printf "${gray}installed_files_filter: $installed_files_filter${normal}\n"
+    fi
     if [ "$can_do_git" ]; then
         if [ "$commit_range" ]; then
             if [ $from_commit ]; then printf "${gray}from-commit: $from_commit${normal}\n"; fi
@@ -191,5 +223,3 @@ if [ $debug ];then
         fi
     fi
 fi
-
-

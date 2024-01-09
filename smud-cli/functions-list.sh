@@ -7,8 +7,10 @@ list()
         echo "${bold}smud list${normal} [options]: List ${bold}updated/new${normal} products ready for installation or current products installed."
         echo ""
         echo "Options:"
-        echo "  --product=, -P=:"
-        echo "      Select only the selected product."
+        echo "  --products=, --product=, -P=:"
+        echo "      Select one or more products."
+        echo "  --all=, -A=:"
+        echo "      Select all products."
         echo "  --stage=, -S=:"
         echo "      Select only products on selected stage."
         echo "  --external-test,-ET:"
@@ -62,6 +64,16 @@ list()
         return
     fi
 
+    if [ ! "$is_repo" ]; then
+        printf "${red}'$(pwd)' is not a git repository! ${normal}\n"
+        return
+    fi
+
+    if [ ! "$product" ]; then
+        show_gitopd_changes
+        return
+    fi
+
     if [ ! "$separator" ] && [ ! "$hide_title" ]; then
         # print title
         if [ $new ]; then
@@ -74,128 +86,105 @@ list()
         fi    
     fi    
 
-    if [ $installed ]; then
-        no_products_found="true"
-        if [ -d "products" ]; then  
-            app_yaml_files=$(ls $app_filter)
-            for app_yaml in $app_yaml_files
-            do
-                stage_dir=$(dirname "$app_yaml")
-                app_stage=${selected_stage:-`basename "$stage_dir"`}
-                app_name=$selected_product
-                if [ ! "$app_name" ];then         
-                    app_name=$(dirname "$stage_dir")
-                    app_name=$(basename "$app_name")
-                fi  
-                no_products_found=""
-                date=`ls -l --time-style=long-iso $app_yaml | awk '{print $6,$7}'| sort   ` 
-                grep_for_version=`cat $app_yaml | grep chartVersion: | cut --delimiter=: -f 2 | xargs | tr -d ['\n','\r'] | cut -f1 --delimiter=#`
-                grep_for_version=`printf %-14s "$grep_for_version"`
-                printf "${gray}$date${normal}$col_separator${yellow}$grep_for_version${normal}$col_separator${normal}Product ${bold}$app_name${normal} from ${bold}$app_stage${normal} stage\n"
-            done
-        fi
-        if [ $no_products_found ]; then
-            printf "${gray}No products found.${normal}\n"    
-        fi
-        exit
-    fi
-
-    if [ ! "$is_repo" ]; then
-        printf "${red}'$(pwd)' is not a git repository! ${normal}\n"
-        exit
-    fi
-    git_log="git log $commit_range $date_range --max-count=1 --no-merges $git_grep $diff_filter --pretty=format:\"%H\" -- $filter"
-
-    if [ $verbose ]; then
-        printf "${gray}$(echo "$git_log" | sed -e 's/%/%%/g')${normal}\n"    
-    fi
+    
     has_commits="$(git log $commit_range $date_range --max-count=1 --no-merges $git_grep $diff_filter --pretty=format:\"%H\" -- $filter)"
     if [ ! $has_commits ]; then
         printf "${gray}No products found.${normal}\n"   
-        exit 
+        return 
     fi
-    if [ "$can_list_direct" ]; then
-        git_log="git --no-pager log $commit_range $date_range --reverse --date=iso --no-merges $git_grep $diff_filter --pretty=format:\"%C(#808080)%ad%Creset$col_separator%C(yellow)%h%Creset$col_separator$filter_product_name%s$separator\" -- $filter"
-        if [ $verbose ]; then
-            printf "${gray}$(echo "$git_log" | sed -e 's/%/%%/g')${normal}\n"    
-        fi
-        git --no-pager log $commit_range $date_range --reverse --date=iso --no-merges $git_grep $diff_filter --pretty=format:"%C(#808080)%ad%Creset$col_separator%C(yellow)%h%Creset$col_separator$filter_product_name%s$separator" -- $filter
-        
-        echo ""
-        return
-    fi
-  
 
-    if [ $verbose ];then
-        ncommits=0
-        if [ ! "$commits" == "" ];then
-            ncommits=$(echo $commits| sed -e 's/ /\n/g' | grep '' -c )
-        fi    
-        echo "Number of commits by filter '$filter': $ncommits"
-    fi
-    last_files=()
-    last_product_name=""
-    for commit in $commits
+    files=$(git log $commit_range $date_range --no-merges --name-only $git_grep --diff-filter=ACMRTUB --pretty=COMMIT:"%H" -- $filter)
+
+    git_stages=($selected_stage)
+    git_products=()
+    commit=""
+    declare -A product_versions
+
+    
+    for file in $files:
     do
-        if [ $verbose ];then
-            echo "commit: $commit"
+        c=$(echo $file | grep COMMIT: -c)
+        if [ $c -gt 0 ]; then
+            commit=$(echo $file| sed -e 's/COMMIT://g')
+        else
+            parsed_stage=$(echo "$file" | cut -d'/' -f3)
+            parsed_product=$(echo "$file" | cut -d'/' -f2)
+
+            if [ ! "$parsed_stage" = "product.yaml" ]; then
+                if [[ ! " ${git_stages[@]} " =~ " $parsed_stage " ]]; then
+                    git_stages+=("$parsed_stage")
+                fi
+            fi
+
+            if [[ ! " ${git_products[@]} " =~ " $parsed_product " ]]; then
+                git_products+=("$parsed_product")
+            fi
+
+            product_info=${product_versions[${parsed_product}]}
+            if [ ! "$product_info" ] && [ "$commit" ]; then
+                c=$(echo $file | grep app.yaml -c)
+                if [ $c -gt 0 ]; then
+                    product_version="$(git --no-pager show $commit:$file $git_grep --diff-filter=ACMRT | grep chartVersion: | cut --delimiter=: -f 2 | xargs | tr -d ['\n','\r'] | cut -f1 --delimiter=#)"
+
+                    product_versions[$parsed_product]="$product_version|$commit"
+                    
+                    # echo "product: $parsed_product, version: $version"
+                fi
+            fi
         fi
 
-        files=$(git show $commit $diff_filter --pretty="" --name-only  )
-        product_name=$filter_product_name
-        show_commit=1
-        file_index=0
-        file_not_exist=0
-        for file in $files
+    done
+    
+    git_products=($(echo "${git_products[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' '))
+    git_stages=($(echo "${git_stages[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' '))
+
+    # echo "products: ${git_products[@]}"
+    # echo "stages: ${git_stages[@]}"
+
+    n_col0_len=40
+    n_col1_len=14
+    n_col2_len=14
+    for stage in ${git_stages[@]}
+    do
+        printf "\n$stage:\n"
+        printf "`printf %-${n_col0_len}s "PRODUCTS"` `printf %-${n_col1_len}s "CURRENT VER."` `printf %-${n_col2_len}s "NEW VER."` FILES\n"
+        for git_product in ${git_products[@]}
         do
-            file_index=$((file_index+1))
-            if [ $verbose ];then
-                echo "file: $file"
+            current_version=""
+            new_version=""
+            commit=""    
+            product_info=${product_versions[${git_product}]}
+            if [ "$product_info" ]; then
+                new_version="$(echo $product_info | cut -d "|" -f 1)"
+                commit="$(echo $product_info | cut -d "|" -f 2)"
+                # echo "new_version: [$new_version]"
+                # echo "commit: [$commit]"
             fi
             
-            if [ $new ] && [ ! -f $file ];then
-                file_not_exist=$((file_not_exist+1))
+            product_path="products/$git_product"
+            app_file="$product_path/$stage/app.yaml"
+            if [ -f $app_file ]; then
+                current_version=`cat $app_file | grep chartVersion: | cut --delimiter=: -f 2 | xargs | tr -d ['\n','\r'] | cut -f1 --delimiter=#`
             fi
 
-            if [ "$is_smud_gitops_repo" ] && [ ! "$product_name" ]; then
-                if printf '%s\0' "${last_files[@]}" | grep -qwz $file; then
-                    product_name=$last_product_name
-                    # echo "in_array: $file $product_name"
-                    continue
-                fi    
-                DIRP=$(dirname "$file")
-                while [ ! "$product_name"  ]
-                do
-                    DIRC=$DIRP
-                    DIRP=$(dirname "$DIRC")
-                    
-                    if [ "$DIRP" = "products" ];then
-                        product_name="[$(echo $DIRC | sed -e "s/products\///g")] "
-                        break
-                    fi
 
-                    if [ ! "$DIRP" ] || [ "$DIRP" = "." ];then  
-                        break
-                    fi
-                done
-            fi
-        done
-        last_files=$files
-        last_product_name=$product_name
+            stage_filter=":$product_path/$stage/** $product_path/product.yaml"
+            files_str=""
+            if [ "$new_version" ]; then
+                files_str="$(git log $commit --reverse --date=iso --no-merges --name-only --pretty= -- $stage_filter)"
+            else    
+                files_str="$(git log $commit --reverse --date=iso --no-merges --name-only $git_grep $diff_filter --pretty= -- $stage_filter)"
+            fi 
+            
+            files_str=`echo "${files_str[@]}" | sort | uniq`
+            replace_regex="s/products\/$git_product/./g" 
 
-        if [ $new ];then
-            show_commit=0
-            if [ $file_index -eq $file_not_exist ] && [ $file_index -gt 0 ]; then
-                show_commit=1
-            fi
-        fi
-        
-        if [ $show_commit -eq 1 ];then
-            if [ $verbose ];then
-                echo "Show commit $commit $product_name"
-            fi
-
-            git log $commit --max-count=1 --date=iso --no-merges $git_grep --pretty=format:"%C(#777777)%ad%Creset$col_separator%C(yellow)%h%Creset$col_separator$product_name%s$separator"
-        fi
-    done    
+            print_git_product=`printf %-${n_col0_len}s "$git_product"`
+            print_current_version=`printf %-${n_col1_len}s "$current_version"`
+            print_new_version=`printf %-${n_col2_len}s "$new_version"`
+            printf "$print_git_product $print_current_version $print_new_version $(echo $files_str | sed -e $replace_regex)\n"
+            
+        done    
+    done
+    echo ""
 }
