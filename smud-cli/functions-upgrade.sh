@@ -1,37 +1,37 @@
 #!/usr/bin/env bash
 
-apply()
+upgrade()
 {
     if [ "$debug" ] && [ "$git_grep" ]; then
         echo "git_grep: $git_grep"
     fi
     if [ $help ]; then
-        echo "${bold}smud apply${normal} [options]: Apply one or more productst to the repository."
+        echo "${bold}smud upgrade${normal} [options]: Upgrade one or more productst to the repository."
         echo ""
         echo "Options:"
         echo "  --product=, -P=:"
-        echo "      Apply only the selected product."
+        echo "      Upgrade only the selected product."
         echo "  --from-commit=,-FC=:"
-        echo "      Apply only products ${bold}from${normal} a specific commit"
+        echo "      Upgrade only products ${bold}from${normal} a specific commit"
         echo "  --to-commit=,-TC=:"
-        echo "      Apply only products ${bold}to${normal} a specific commit"
+        echo "      Upgrade only products ${bold}to${normal} a specific commit"
         echo "  --from-date,-FD:"
-        echo "      Apply only products ${bold}from${normal} a specific date"
+        echo "      Upgrade only products ${bold}from${normal} a specific date"
         show_date_help "from-date"
         echo "  --to-date,-TD:"
-        echo "      Apply only products ${bold}to${normal} a specific date"
+        echo "      Upgrade only products ${bold}to${normal} a specific date"
         show_date_help "to-date"
         echo "  --version,-V:"
-        echo "      Apply only products ${bold}with${normal} a specific version"
+        echo "      Upgrade only products ${bold}with${normal} a specific version"
         echo "      -G'chartVersion: $version' | -S'chartVersion: $version'"
         echo "  --stage=, -S=:"
-        echo "      Apply only products on selected stage."
+        echo "      Upgrade only products on selected stage."
         echo "  --external-test,-ET:"
-        echo "      Apply only products on external-test stage. Override --stage parameter"
+        echo "      Upgrade only products on external-test stage. Override --stage parameter"
         echo "  --production,-PROD:"
-        echo "      Apply only products on production stage. Override --stage parameter"
+        echo "      Upgrade only products on production stage. Override --stage parameter"
         echo "  --silent:"
-        echo "      Apply without question."
+        echo "      Upgrade without question."
         echo "  --remote, remote=<branch>:"
         echo "      Push to remote when all selected version was successfully applied."
         echo "      If --remote is used, the default-branch will be used"
@@ -42,8 +42,8 @@ apply()
         if [ "$examples" ]; then 
             echo ""
             echo "Examples:"
-            echo "  # Apply all audit-product commits on all stages"
-            echo "  smud apply --product=audit --remote=main"
+            echo "  # Upgrade all audit-product commits on all stages"
+            echo "  smud upgrade --product=audit --remote=main"
             echo ""
         fi
         return
@@ -60,8 +60,8 @@ apply()
         return
     fi
 
-
-    has_commits=$(git log $commit_range --max-count=1 --no-merges $diff_filter $git_grep --pretty=format:"%H" -- $filter)
+    # Using commit or date ranges we only want to apply the latest commit in this range which is handled using --max-count=1
+    has_commits=$(git log $commit_range $date_range --max-count=1 --no-merges $diff_filter $git_grep --pretty=format:"%H" -- $filter)
     if [ ! $has_commits ]; then
         printf "${gray}No products found.${normal}\n"   
         return
@@ -70,17 +70,15 @@ apply()
     yes_no="yes"
     if [ ! $silent ]; then
       list
-        
-    #   git --no-pager log $commit_range --reverse --date=iso --no-merges $diff_filter $git_grep --pretty=format:"%C(#808080)%ad%Creset$col_separator%C(yellow)%h%Creset$col_separator$filter_product_name%s$separator" -- $filter
       echo ""
-      printf "${yellow}Do you want to continue applying the selected products (Yes/No)? ${normal}"
+      printf "${yellow}Do you want to continue upgradeing the selected products (Yes/No)? ${normal}"
       read yes_no
       yes_no=$(echo "$yes_no" | tr '[:upper:]' '[:lower:]')
       printf "${gray}You selected: $yes_no${normal}\n"
     fi  
     
     if [ "$yes_no" = "yes" ] || [ "$yes_no" = "y" ]; then
-        commits=$(git log $from_commit^..$to_commit --reverse --no-merges $diff_filter $git_grep --pretty=format:"%H" -- $filter)
+        commits=$(git log $from_commit^..$to_commit $date_range  --reverse --no-merges $diff_filter $git_grep --pretty=format:"%H" -- $filter)
         commits=$(echo $commits| sed -e 's/\n/ /g')
         printf "${gray}Running: git cherry-pick [commits]...${normal}\n"   
         log=$(git cherry-pick $commits)
@@ -119,7 +117,7 @@ apply()
             echo ""
             printf "${red}Selected products was NOT successfully applied.${normal}\n"
             if [ ! $silent ]; then
-                printf "${yellow}Do you want to abort the apply-operation (Yes/No)? ${normal}"
+                printf "${yellow}Do you want to abort the upgrade-operation (Yes/No)? ${normal}"
                 read yes_no
                 yes_no=$(echo "$yes_no" | tr '[:upper:]' '[:lower:]')
                 printf "${gray}You selected: $yes_no${normal}\n"
@@ -128,10 +126,10 @@ apply()
                     printf "${gray}Running: git cherry-pick --abort${normal}"
                     log=$(git cherry-pick --abort)
                     if [ $? -eq 0 ];then
-                        echo "The apply-operation aborted!"
+                        echo "The upgrade-operation aborted!"
                     else    
                         printf "${gray}$log${normal}\n"    
-                        printf "${red}The apply-operation abort failed....${normal}"
+                        printf "${red}The upgrade-operation abort failed....${normal}"
                     fi
                 fi    
             fi    

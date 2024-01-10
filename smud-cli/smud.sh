@@ -3,7 +3,7 @@
 . $(dirname "$0")/include.sh "$@"
 . $(dirname "$0")/functions.sh
 . $(dirname "$0")/functions-list.sh
-. $(dirname "$0")/functions-apply.sh
+. $(dirname "$0")/functions-upgrade.sh
 
 command=$1
 
@@ -23,7 +23,7 @@ else
         "init"          ) upstream $command;;
         "update-cli"    ) update_cli;;
         "list"          ) list;;
-        "apply"         ) apply;;
+        "upgrade"       ) upgrade;;
         *               ) show_invalid_command;;
 
     esac    

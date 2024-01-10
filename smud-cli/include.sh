@@ -154,6 +154,7 @@ if [ "$grep" ]; then
 fi
 
 default_branch="main"
+can_do_git="true"
 if [ $has_args ] && [ ! $help ] && [ ! $installed ] && [ "$is_repo" ]; then
     default_branch=$(git config --list | grep -E 'branch.(main|master).remote' | sed -e 's/branch\.//g' -e 's/\.remote//g' -e 's/=origin//g')
     if [ ! "$default_branch" ]; then

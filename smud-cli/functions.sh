@@ -107,7 +107,6 @@ set_upstream()
         new_value="${arg[$i]}"
     done
     # echo "new_value: $new_value"
-
     remote_upstream=$(git config --get remote.upstream.url)
     if [ $new_value ]; then
         remote_upstream=$new_value
@@ -130,6 +129,18 @@ set_upstream()
     fi
 }
 
+fetch_upstream()
+{
+    printf "Cloning repository\n"
+    {
+        $(git fetch upstream > /dev/null 2>&1) 
+    } || {
+        printf "Failed to fetch repository\n"
+        return
+    }
+    printf "Repository cloned\n"
+}
+
 upstream()
 {
     if [ $help ]; then
@@ -142,13 +153,17 @@ upstream()
     fi
 
     if [ ! "$is_repo" ]; then
-        printf "${red}'$(pwd)' is not a git repository! ${normal}\n"
-        return
+        $(git init)
+        #printf "${red}'$(pwd)' is not a git repository! ${normal}\n"
+        #return
     fi
 
     set_upstream "upstream"
-
-    git fetch upstream
+   
+    branches=$(git branch)
+    if [ !branches ]; then
+        fetch_upstream 
+    fi
 }
 
 update_cli()

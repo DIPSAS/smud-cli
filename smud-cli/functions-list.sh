@@ -185,7 +185,6 @@ list()
         fi    
     fi    
 
-    
     has_commits="$(git log $commit_range $date_range --max-count=1 --no-merges $git_grep $diff_filter --pretty=format:\"%H\" -- $filter)"
     if [ ! $has_commits ]; then
         if [ ! "$stage" = "development" ] && [ ! "$stage" = "internal-test" ]; then
