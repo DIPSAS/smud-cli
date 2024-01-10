@@ -69,7 +69,9 @@ apply()
 
     yes_no="yes"
     if [ ! $silent ]; then
-      git --no-pager log $commit_range --reverse --date=iso --no-merges $diff_filter $git_grep --pretty=format:"%C(#808080)%ad%Creset$col_separator%C(yellow)%h%Creset$col_separator$filter_product_name%s$separator" -- $filter
+      list
+        
+    #   git --no-pager log $commit_range --reverse --date=iso --no-merges $diff_filter $git_grep --pretty=format:"%C(#808080)%ad%Creset$col_separator%C(yellow)%h%Creset$col_separator$filter_product_name%s$separator" -- $filter
       echo ""
       printf "${yellow}Do you want to continue applying the selected products (Yes/No)? ${normal}"
       read yes_no
