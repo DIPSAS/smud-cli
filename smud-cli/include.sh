@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 declare -A ARGS
 
+can_run_git_log()
+{
+    if [ "$can_do_git" ]; then
+        check="git ls-files GETTING_STARTED.md README.md gitops-engine/argo/Chart.yaml environments/environments.example.yaml"
+        if [ "$check" ]; then
+            echo "$can_do_git"
+        fi
+    fi
+    
+}
+
 get_changelog_file()
 {
     BASEDIR=$(dirname "$0")
@@ -88,7 +99,7 @@ to_commit=$(get_arg '--to-commit,-TC')
 from_date=$(get_arg '--from-date,-FD')
 to_date=$(get_arg '--to-date,-TD')
 
-development=$(get_arg '--development,-D')
+development=$(get_arg '--development,-D,-DEV')
 external_test=$(get_arg '--external-test,-ET')
 internal_test=$(get_arg '--internal-test,-IT')
 production=$(get_arg '--production,-PROD')
@@ -103,8 +114,6 @@ elif [ $internal_test ]; then
 elif [ $development ]; then   
     stage="development"
 fi
-
-
 
 
 selected_stage=$stage
@@ -147,9 +156,19 @@ fi
 default_branch="main"
 if [ $has_args ] && [ ! $help ] && [ ! $installed ] && [ "$is_repo" ]; then
     default_branch=$(git config --list | grep -E 'branch.(main|master).remote' | sed -e 's/branch\.//g' -e 's/\.remote//g' -e 's/=origin//g')
-    can_do_git="true"
-    if [ ! "$from_commit" ] && [ ! "$from_date" ]; then
-        from_commit=$(git log $default_branch -1 --pretty=format:"%H")
+    if [ ! "$default_branch" ]; then
+        default_branch=$(git config --get init.defaultbranch)
+    fi
+
+    if [ ! "$default_branch" ]; then
+        default_branch="main"
+        can_do_git=""
+    else
+        can_do_git="$(git branch --list $default_branch)"
+    fi
+
+    if [ ! "$from_commit" ] && [ ! "$from_date" ] && [ "$can_do_git" ] ; then
+        from_commit=$(git log $default_branch -1 --pretty=format:"%H" > /dev/null 2>&1)
     fi
 
     if [ ! $to_commit ] && [ ! $is_smud_dev_repo ];then
@@ -180,10 +199,10 @@ if [ "$all" ]; then
 fi
 c=$(echo $product | grep ',' -c)
 if [ ! $c -eq  0 ]; then
-    products=$(echo $product| sed -e 's/,/ /g')    
+    selected_products=$(echo $product| sed -e 's/,/ /g')    
     installed_files_filter=""
     filter=""
-    for p in $products
+    for p in $selected_products
     do
         if [ "$installed_files_filter" ];then
             installed_files_filter="$installed_files_filter products/$p/$stage/app.yaml"

@@ -1,3 +1,100 @@
+create_product_info()
+{
+    echo "$product_latest_date|$current_version|$product_latest_version|$product_latest_commit"
+}
+
+set_product_info()
+{   
+    product_info=$(create_product_info)
+    if [ "$stage_product_name" ]; then    
+        product_infos[$stage_product_name]=$product_info
+    fi
+}
+
+
+get_product_info() {
+    if [ ! "$product_info" ] && [ "$stage_product_name" ]; then
+        product_info=${product_infos[${stage_product_name}]}
+    fi
+    
+    echo "$product_info"
+}
+
+get_latest_commit_date()
+{
+    if [ ! "$product_latest_date" ] && [ "$stage_product_name" ]; then
+        product_info=$(get_product_info)
+        if [ "$product_info" ]; then
+            product_latest_date="$(echo $product_info | cut -d "|" -f 1)"
+        fi
+    fi
+    echo "$(date -d "@$product_latest_date")"
+}
+
+get_current_version()
+{
+    if [ ! "$current_version" ] && [ "$stage_product_name" ]; then
+        product_info=$(get_product_info)
+        if [ "$product_info" ]; then
+            current_version="$(echo $product_info | cut -d "|" -f 2)"
+        fi
+        if [ ! "$current_version" ] ; then
+            app_file="products/$stage_product_name/app.yaml"
+            if [ -f $app_file ]; then
+                current_version=`cat $app_file | grep chartVersion: | cut --delimiter=: -f 2 | xargs | tr -d ['\n','\r'] | cut -f1 --delimiter=# | xargs`
+                if [ "$current_version" ]; then
+                    set_product_info
+                fi
+            fi
+        fi
+    fi
+    echo "$current_version"
+}
+
+get_latest_version()
+{
+    if [ ! "$product_latest_version" ] && [ "$stage_product_name" ]; then
+        product_info=$(get_product_info)
+        if [ "$product_info" ]; then
+            product_latest_version="$(echo $product_info | cut -d "|" -f 3)"
+        fi
+        if [ ! "$product_latest_version" ] ; then
+            if [ ! "$file" ] || [ ! "$product_latest_commit" ]; then
+                file="products/$stage_product_name/app.yaml"
+                product_latest_commit="$(echo $product_info | cut -d "|" -f 4)"
+            fi
+            c=$(echo $file | grep app.yaml -c)
+            if [ $c -gt 0 ] && [ "$product_latest_commit" ]; then
+                product_app_content="$(git show $product_latest_commit:$file --diff-filter=ACMRT -- $file)"
+                if [ "$product_app_content" ]; then
+                    product_latest_version="$(echo "$product_app_content" | grep chartVersion: | cut --delimiter=: -f 2 | xargs | tr -d ['\n','\r'] | cut -f1 --delimiter=#| xargs)"
+                    if [ "$product_latest_version" ]; then
+                        set_product_info
+                    fi
+                fi
+            fi
+        fi
+    fi
+    echo "$product_latest_version"
+}
+
+complete_version()
+{
+    if [ "$stage_product_name" ]; then
+
+        # Adding files information to latest prased product
+        current_version=$(get_current_version)
+        product_latest_version=$(get_latest_version)
+        product_info="$(create_product_info)"
+
+        product_info="$product_info|`echo "${product_files[@]}" | sort | uniq`"
+        product_infos[$stage_product_name]=$product_info
+
+        # echo "{ product_name: '$product_name', product_info: '$product_info' }"
+    fi
+}
+
+
 list()
 {
     if [ "$debug" ] && [ "$git_grep" ]; then
@@ -89,102 +186,167 @@ list()
     
     has_commits="$(git log $commit_range $date_range --max-count=1 --no-merges $git_grep $diff_filter --pretty=format:\"%H\" -- $filter)"
     if [ ! $has_commits ]; then
-        printf "${gray}No products found.${normal}\n"   
-        return 
+        if [ ! "$stage" = "development" ] && [ ! "$stage" = "internal-test" ]; then
+            printf "${gray}No products found.${normal}\n"   
+            return 
+        fi
     fi
+    product_name=""
+    files=$(git log $commit_range $date_range --no-merges --name-only $git_grep --diff-filter=ACMRTUB --pretty=COMMIT:"%H|%at" -- $filter)
 
-    files=$(git log $commit_range $date_range --no-merges --name-only $git_grep --diff-filter=ACMRTUB --pretty=COMMIT:"%H" -- $filter)
-
-    git_stages=($selected_stage)
-    git_products=()
+    product_stages=()
+    product_names=()
     commit=""
-    declare -A product_versions
+    declare -A product_infos
 
+    product_files=()
     
     for file in $files:
     do
         c=$(echo $file | grep COMMIT: -c)
+        # echo "file: $file"
         if [ $c -gt 0 ]; then
-            commit=$(echo $file| sed -e 's/COMMIT://g')
+            complete_version
+            product_info=""
+            current_version=""
+            product_name=""
+            product_stage=""
+            product_latest_version=""
+            product_latest_date=""
+            stage_product_name=""
+            commit_info=$(echo $file| sed -e 's/COMMIT://g')
+
+            product_latest_commit="$(echo $commit_info | cut -d "|" -f 1)"
+            product_latest_date="$(echo $commit_info | cut -d "|" -f 2)"
+            product_files=()
         else
-            parsed_stage=$(echo "$file" | cut -d'/' -f3)
-            parsed_product=$(echo "$file" | cut -d'/' -f2)
-
-            if [ ! "$parsed_stage" = "product.yaml" ]; then
-                if [[ ! " ${git_stages[@]} " =~ " $parsed_stage " ]]; then
-                    git_stages+=("$parsed_stage")
-                fi
-            fi
-
-            if [[ ! " ${git_products[@]} " =~ " $parsed_product " ]]; then
-                git_products+=("$parsed_product")
-            fi
-
-            product_info=${product_versions[${parsed_product}]}
-            if [ ! "$product_info" ] && [ "$commit" ]; then
-                c=$(echo $file | grep app.yaml -c)
+            file=$(echo $file| sed -e 's/\://g')
+            product_files+=("$file")
+            if [ ! "$product_stage" ]; then
+                # Add to $product_stages if new stage
+                c=$(echo $file | grep product.yaml -c)
                 if [ $c -gt 0 ]; then
-                    product_version="$(git --no-pager show $commit:$file $git_grep --diff-filter=ACMRT | grep chartVersion: | cut --delimiter=: -f 2 | xargs | tr -d ['\n','\r'] | cut -f1 --delimiter=#)"
-
-                    product_versions[$parsed_product]="$product_version|$commit"
-                    
-                    # echo "product: $parsed_product, version: $version"
+                    continue
+                else
+                    product_stage=$(echo "$file" | cut -d'/' -f3)
+                    if [[ ! " ${product_stages[@]} " =~ " $product_stage " ]]; then
+                        product_stages+=("$product_stage")
+                    fi
                 fi
             fi
+            if [ ! "$product_name" ]; then
+                # Add to $product_names if new product
+                product_name=$(echo "$file" | cut -d'/' -f2)
+                stage_product_name="$product_name/$product_stage"
+                if [[ ! " ${product_names[@]} " =~ " $product_name " ]]; then
+                    product_names+=("$product_name")
+                fi
+            fi
+            
+            # product_latest_version="$(get_latest_version)"
+            set_product_info
         fi
-
     done
+    complete_version
+    file=""
     
-    git_products=($(echo "${git_products[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' '))
-    git_stages=($(echo "${git_stages[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' '))
+    if [ "$is_smud_gitops_repo" ]; then
+        echo ""
+    fi
 
-    # echo "products: ${git_products[@]}"
-    # echo "stages: ${git_stages[@]}"
+    product_names=($(echo "${product_names[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' '))
+    product_stages=($(echo "${product_stages[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' '))
+
+    # echo "product_names: ${product_names[@]}"
+    # echo "stages: ${product_stages[@]}"
+    for key in ${!product_infos[@]}; do
+        echo "p: ${key} ${product_infos[${key}]}"
+    done
 
     n_col0_len=40
     n_col1_len=14
     n_col2_len=14
-    for stage in ${git_stages[@]}
+    n_col3_len=6
+    for product_stage in ${product_stages[@]}
     do
-        printf "\n$stage:\n"
-        printf "`printf %-${n_col0_len}s "PRODUCTS"` `printf %-${n_col1_len}s "CURRENT VER."` `printf %-${n_col2_len}s "NEW VER."` FILES\n"
-        for git_product in ${git_products[@]}
+        printf "\n$product_stage:\n"
+        printf "`printf %-${n_col0_len}s "PRODUCTS"` `printf %-${n_col1_len}s "CURRENT VER."` `printf %-${n_col2_len}s "LATEST VER."` `printf %-${n_col3_len}s "TAGS."`FILES\n"
+        for product_name in ${product_names[@]}
         do
+            stage_product_name="$product_name/$product_stage"
+            product_latest_version=""
             current_version=""
-            new_version=""
+            latest_version=""
             commit=""    
-            product_info=${product_versions[${git_product}]}
+            files=""
+            product_info=${product_infos[${stage_product_name}]}
+            if [ ! "$product_info" ]; then
+                continue
+            fi
             if [ "$product_info" ]; then
-                new_version="$(echo $product_info | cut -d "|" -f 1)"
-                commit="$(echo $product_info | cut -d "|" -f 2)"
-                # echo "new_version: [$new_version]"
+                current_version="$(echo $product_info | cut -d "|" -f 2)"
+                if [ "$new" ] && [ "$current_version" ];then
+                    continue
+                fi
+
+                # $product_latest_date|$current_version|$product_latest_version|$product_latest_commit|$files
+                date="$(echo $product_info | cut -d "|" -f 1)";date="$(date -d "@$date")"
+                # latest_version="$(echo $product_info | cut -d "|" -f 3)"
+                commit="$(echo $product_info | cut -d "|" -f 4)"
+                files="$(echo $product_info | cut -d "|" -f 5)"
+                latest_version="$(get_latest_version)"
                 # echo "commit: [$commit]"
+                # echo "{ stage: '$product_stage',  product_name: '$product_name', latest_version: '$latest_version', commit: '$commit', product_info: '${product_infos[${stage_product_name}]}' }"
+                
+                tags=$(get_tags "'$current_version'" "'$latest_version'")
             fi
             
-            product_path="products/$git_product"
-            app_file="$product_path/$stage/app.yaml"
-            if [ -f $app_file ]; then
-                current_version=`cat $app_file | grep chartVersion: | cut --delimiter=: -f 2 | xargs | tr -d ['\n','\r'] | cut -f1 --delimiter=#`
-            fi
+            product_path="products/$product_name"
+            stage_filter=":$product_path/$product_stage/** $product_path/product.yaml"
 
+            replace_regex="s/products\/$product_name/./g" 
 
-            stage_filter=":$product_path/$stage/** $product_path/product.yaml"
-            files_str=""
-            if [ "$new_version" ]; then
-                files_str="$(git log $commit --reverse --date=iso --no-merges --name-only --pretty= -- $stage_filter)"
-            else    
-                files_str="$(git log $commit --reverse --date=iso --no-merges --name-only $git_grep $diff_filter --pretty= -- $stage_filter)"
-            fi 
-            
-            files_str=`echo "${files_str[@]}" | sort | uniq`
-            replace_regex="s/products\/$git_product/./g" 
-
-            print_git_product=`printf %-${n_col0_len}s "$git_product"`
+            print_product_name=`printf %-${n_col0_len}s "$product_name"`
             print_current_version=`printf %-${n_col1_len}s "$current_version"`
-            print_new_version=`printf %-${n_col2_len}s "$new_version"`
-            printf "$print_git_product $print_current_version $print_new_version $(echo $files_str | sed -e $replace_regex)\n"
+            print_latest_version=`printf %-${n_col2_len}s "$latest_version"`
+            print_tags=`printf %-${n_col3_len}s "$tags"`
+
+            printf "$print_product_name $print_current_version $print_latest_version $print_tags $(echo $files | sed -e $replace_regex)\n"
             
         done    
     done
     echo ""
+}
+
+get_tags() 
+{
+    replace_reg_exp="s/'//g"
+    cur_ver="$(echo "$1" | sed -e $replace_reg_exp)"
+    latest_ver="$(echo "$2" | sed -e $replace_reg_exp)"
+    if [ ! "$cur_ver" ] && [ "$latest_ver" ]; then
+        echo "NEW"
+        return
+    elif [ "$cur_ver" ] && [ "$latest_ver" ]; then
+        # cur_ver_array=$(echo $cur_ver | tr "." "\n")
+        # latest_ver_array=$(echo $latest_ver | tr "." "\n")
+        cur_ver_major="$(echo $cur_ver | cut -d "." -f 1)"
+        latest_ver_major="$(echo $latest_ver | cut -d "." -f 1)"
+        if [ ! "$cur_ver_major" = "$latest_ver_major" ];then
+            echo "MAJOR"
+            return
+        fi
+        cur_ver_minor="$(echo $cur_ver | cut -d "." -f 2)"
+        latest_ver_minor="$(echo $latest_ver | cut -d "." -f 2)"
+        if [ ! "$cur_ver_minor" = "$latest_ver_minor" ];then
+            echo "MINOR"
+            return
+        fi
+
+        cur_ver_patch="$(echo $cur_ver | cut -d "." -f 3)"
+        latest_ver_patch="$(echo $latest_ver | cut -d "." -f 3)"
+        if [ ! "$cur_ver_patch" = "$latest_ver_patch" ];then
+            echo "patch"
+            return
+        fi
+    fi
 }
