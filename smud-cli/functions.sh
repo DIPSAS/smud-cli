@@ -102,11 +102,12 @@ set_upstream()
 
     i=0
     new_value="${arg[0]}"
+    
     while [[ "$new_value" == "--"* ]]; do
         i=$((i+1))
         new_value="${arg[$i]}"
     done
-    # echo "new_value: $new_value"
+    
     remote_upstream=$(git config --get remote.upstream.url)
     if [ $new_value ]; then
         remote_upstream=$new_value
@@ -134,6 +135,7 @@ fetch_upstream()
     printf "Cloning repository\n"
     {
         $(git fetch upstream > /dev/null 2>&1) 
+        $(git merge upstream/main > /dev/null 2>&1)
     } || {
         printf "Failed to fetch repository\n"
         return
@@ -153,18 +155,18 @@ upstream()
     fi
 
     if [ ! "$is_repo" ]; then
-        $(git init)
-        #printf "${red}'$(pwd)' is not a git repository! ${normal}\n"
-        #return
+        $(git init > /dev/null 2>&1)
+        is_repo="true"
     fi
 
     set_upstream "upstream"
-   
+    
     branches=$(git branch)
-    if [ !branches ]; then
-        fetch_upstream 
-    fi
-}
+    if [ ! -n "$branches" ]; then
+        # "main" possibly not default branch name so create it
+        $(git checkout -b main)
+    fi 
+}   
 
 update_cli()
 {
