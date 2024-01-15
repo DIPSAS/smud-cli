@@ -4,6 +4,7 @@
 . $(dirname "$0")/functions.sh
 . $(dirname "$0")/functions-list.sh
 . $(dirname "$0")/functions-upgrade.sh
+. $(dirname "$0")/functions-init.sh
 
 command=$1
 
@@ -19,8 +20,7 @@ else
         "--help"        ) help;;
         "version"       ) version;;
         "set-upstream"  ) set_upstream;;
-        "upstream"      ) upstream $command;;
-        "init"          ) upstream $command;;
+        "init"          ) init;;
         "update-cli"    ) update_cli;;
         "list"          ) list;;
         "upgrade"       ) upgrade;;
