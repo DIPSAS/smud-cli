@@ -2,3 +2,5 @@
 /download-and-install-cli.sh
 
 smud-cli/functions-list copy.sh
+
+.vscode/
