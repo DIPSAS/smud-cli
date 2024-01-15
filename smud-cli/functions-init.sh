@@ -11,5 +11,8 @@ init()
         return
     fi
 
+    # Init repo and set upstream
     upstream
+    # Fetch the repo
+    fetch_upstream
 }
