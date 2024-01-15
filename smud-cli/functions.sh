@@ -196,7 +196,6 @@ show_date_help()
     echo "      or relative dates:"
     echo "        --$s=today|tomorrow|yesterday"
     echo "        --$s='1 week ago|5 days ago|1 year ago'"
-    
 }
 
 show_gitopd_changes() 
