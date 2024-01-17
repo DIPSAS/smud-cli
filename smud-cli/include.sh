@@ -169,18 +169,25 @@ if [ $has_args ] && [ ! $help ] && [ ! $installed ] && [ "$is_repo" ]; then
     fi
 
     if [ ! "$from_commit" ] && [ ! "$from_date" ] && [ "$can_do_git" ] ; then
-        from_commit=$(git log $default_branch -1 --pretty=format:"%H" > /dev/null 2>&1)
+        {
+            $(git log > /dev/null 2>&1)
+            from_commit=$(git log $default_branch -1 --pretty=format:"%H")
+        } || {
+            printf "${red}No commits found, run ${gray}smud init ${red} to fetch the upstream repository.\n${normal}"
+            exit
+        }
     fi
-
-    if [ ! $to_commit ] && [ ! $is_smud_dev_repo ];then
-        if [ $(git config --get remote.upstream.url) ]; then
+    
+    if [ ! "$to_commit" ] && [ ! "$is_smud_dev_repo" ];then
+        t="$(git config --get remote.upstream.url)"
+        if [ "$(git config --get remote.upstream.url)" ]; then
             to_commit=$(git log upstream/$default_branch -1 --pretty=format:"%H" > /dev/null 2>&1)
             if [ $? -eq 0 ];then
                 to_commit=$(git log upstream/$default_branch -1 --pretty=format:"%H")
             fi
         fi
     fi
-
+    
     if [ "$from_commit$to_commit" ]; then
         commit_range=$from_commit..$to_commit
     fi

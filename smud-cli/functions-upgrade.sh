@@ -49,6 +49,8 @@ upgrade()
         return
     fi
 
+    fetch_upstream
+
     if [ ! "$is_repo" ]; then
         printf "${red}'$(pwd)' is not a git repository! ${normal}\n"
         return

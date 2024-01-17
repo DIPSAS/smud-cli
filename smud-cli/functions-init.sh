@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+# Run on each command
 init()
 {
     if [ $help ]; then
@@ -15,4 +16,6 @@ init()
     upstream
     # Fetch the repo
     fetch_upstream
+    # Merge the repo into the local branch
+    merge_upstream
 }

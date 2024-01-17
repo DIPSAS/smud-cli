@@ -132,15 +132,25 @@ set_upstream()
 
 fetch_upstream()
 {
-    printf "Cloning repository\n"
+    printf "${gray}Cloning repository\n${normal}"
     {
         $(git fetch upstream > /dev/null 2>&1) 
-        $(git merge upstream/main > /dev/null 2>&1)
     } || {
         printf "Failed to fetch repository\n"
         return
     }
-    printf "Repository cloned\n"
+    printf "${gray}Repository cloned\n${normal}"
+}
+
+merge_upstream() 
+{
+    printf "${gray}Merging repository into local branch\n${normal}"
+    {
+        $(git merge upstream/main > /dev/null 2>&1)
+    } || {
+        printf "${red}Failed to merge repository into local branch\n${normal}"
+    }
+    printf "${gray}Repository merged\n${normal}"
 }
 
 upstream()
