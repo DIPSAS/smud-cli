@@ -130,53 +130,73 @@ set_upstream()
     fi
 }
 
-fetch_upstream()
+set_origin()
 {
-    printf "${gray}Cloning repository\n${normal}"
-    {
-        $(git fetch upstream > /dev/null 2>&1) 
-    } || {
-        printf "Failed to fetch repository\n"
+    if [ ! "$is_repo" ]; then
+        printf "${red}'$(pwd)' is not a git repository! ${normal}\n"
         return
-    }
-    printf "${gray}Repository cloned\n${normal}"
+    fi
+    
+    # Check if origin exists
+    remote_origin=$(git config --get remote.origin.url)
+    echo "$remote_origin"
+    # If string is empty, set the remote origin url
+    if [ ! -n "$remote_origin" ]; then
+        printf "${yellow}Remote repository origin is not set, please enter URL for the remote origin.\nOrigin URL: ${normal}"
+        read user_set_remote_origin
+        $(git remote add origin $user_set_remote_origin)
+        printf "${green}Remote origin set to $user_set_remote_origin\n${normal}"
+    fi
 }
 
-merge_upstream() 
+merge_origin()
 {
-    printf "${gray}Merging repository into local branch\n${normal}"
+    printf "${gray}Merging origin repository into local branch\n${normal}"
     {
-        $(git merge upstream/main > /dev/null 2>&1)
+        $(git merge origin/main > /dev/null 2>&1)
     } || {
         printf "${red}Failed to merge repository into local branch\n${normal}"
     }
     printf "${gray}Repository merged\n${normal}"
 }
 
-upstream()
+fetch_origin()
 {
-    if [ $help ]; then
-        func=${1:-init}
-        echo "${bold}smud $func${normal}: Fetch upstream"
-        printf "With Only ${green}$func${normal}, Upstream '$default_upstream' will be configured if not configured yet. When configured the upstream will be fetched. \n"
-        printf "With ${green}$func ${bold}<value>${normal}, Upstream '<value>' will be configured before upstream is fetched. \n"
-        printf "With ${green}$func ${bold}-${normal}, Upstream will be removed. \n"
+    printf "${gray}Cloning repository\n${normal}"
+    {
+        $(git fetch origin > /dev/null 2>&1) 
+    } || {
+        printf "Failed to fetch repository\n"
         return
-    fi
+    }
+    printf "${gray}Repository cloned\n${normal}"
+} 
 
+init_repo()
+{
     if [ ! "$is_repo" ]; then
         $(git init > /dev/null 2>&1)
         is_repo="true"
     fi
 
-    set_upstream "upstream"
-    
     branches=$(git branch)
     if [ ! -n "$branches" ]; then
         # "main" possibly not default branch name so create it
         $(git checkout -b main)
     fi 
-}   
+}
+
+fetch_upstream()
+{
+    printf "${gray}Fetching repository\n${normal}"
+    {
+        $(git fetch upstream > /dev/null 2>&1) 
+    } || {
+        printf "Failed to fetch repository\n"
+        return
+    }
+    printf "${gray}Repository fetched\n${normal}"
+} 
 
 update_cli()
 {
