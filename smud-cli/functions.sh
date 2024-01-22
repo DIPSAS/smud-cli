@@ -232,20 +232,37 @@ show_gitopd_changes()
 {
     printf "${white}List changes in Gitops model:${normal}\n"
     filter=":applicationsets-staged gitops-engine/argo environments/templates CHANGELOG.md"
-
-    has_commits="$(git log $commit_range $date_range --max-count=1 --no-merges $git_grep $diff_filter --pretty=format:\"%H\" -- $filter)"
-
-    if [ ! $has_commits ]; then
-        printf "${gray}No changes found.${normal}\n"   
+    has_changes_command="git log $git_range --max-count=1 --no-merges $git_grep $diff_filter --pretty=format:\"%H\" -- $filter"
+    {
+        if [ "$git_range" ]; then
+            run_command has-gitops-changes --command-from-var=has_changes_command --return-in-var=has_changes --debug-title='Check if any changes on gitops-model'
+        fi    
+        if [ ! "$has_changes" ]; then
+            if [ ! "$is_smud_dev_repo" ] && [ ! "$installed_gitops" ]; then
+                printf "${gray}No gitops-model changes found.${normal}\n"   
+                return 
+            fi
+        fi
+    } ||
+    {
         return
-    fi
+    }
     filter=":CHANGELOG.md"
     echo ""
-    commits=$(git log $commit_range $date_range --reverse --no-merges $git_grep $diff_filter --pretty=format:"%H" -- $filter)
-    for commit in $commits
-    do 
-        git show $commit:CHANGELOG.md
+    changelog_command="git rev-list $git_range $git_grep --reverse  $diff_filter -1 -- CHANGELOG.md"
+    {
+        if [ "$git_range" ]; then
+            run_command has-gitops-changelog --command-from-var=changelog_command --return-in-var=changelog_commits --debug-title='Check if any changes on gitops-model'
+        fi    
+    } ||
+    {
         return
+    }
+    IFS=$'\n' read -rd '' -a changelog_commits <<< "$changelog_commits"
+
+    for commit in "${changelog_commits[@]}"
+    do 
+        git --no-pager show $commit:CHANGELOG.md --no-color -- 
     done
     return
 }
