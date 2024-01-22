@@ -64,6 +64,7 @@ upgrade()
 
     # Using commit or date ranges we only want to apply the latest commit in this range which is handled using --max-count=1
     has_commits=$(git log $commit_range $date_range --max-count=1 --no-merges $diff_filter $git_grep --pretty=format:"%H" -- $filter)
+
     if [ ! $has_commits ]; then
         printf "${gray}No products found.${normal}\n"   
         return
@@ -73,7 +74,7 @@ upgrade()
     if [ ! $silent ]; then
       list
       echo ""
-      printf "${yellow}Do you want to continue upgradeing the selected products (Yes/No)? ${normal}"
+      printf "${yellow}Do you want to continue upgrading the selected products (Yes/No)? ${normal}"
       read yes_no
       yes_no=$(echo "$yes_no" | tr '[:upper:]' '[:lower:]')
       printf "${gray}You selected: $yes_no${normal}\n"
@@ -83,7 +84,90 @@ upgrade()
         commits=$(git log $from_commit^..$to_commit $date_range  --reverse --no-merges $diff_filter $git_grep --pretty=format:"%H" -- $filter)
         commits=$(echo $commits| sed -e 's/\n/ /g')
         printf "${gray}Running: git cherry-pick [commits]...${normal}\n"   
-        log=$(git cherry-pick $commits)
+        
+        # If there are any current unapplied changes, cherry pick will fail. Catch this.
+        log=$(git cherry-pick $commits 2>&1) || error_message="$log"
+
+        # Check if cherry-pick in progress
+        error_index="$(echo "$error_message" | grep "cherry-pick is already in progress" -c)"
+        if [ $error_index -gt 0 ]; then
+            error_message=""
+            log=$(git cherry-pick --continue 2>&1) || error_message="$log"
+        fi
+
+        # Check if cherry-pick was resolved
+        error_index="$(echo "$error_message" | grep "The previous cherry-pick is now empty, possibly due to conflict resolution" -c)"
+        if [ $error_index -gt 0 ]; then
+            error_message=""
+            log=$(git cherry-pick --skip 2>&1) || error_message="$log"
+        fi
+
+        # Loop until no conflicts
+        if [ -n "$error_message" ]; then
+            errors_resolved="false"
+            printf "${red}Cherry-pick ran into errors that must be resolved manually.\n${normal}"
+            #echo "$error_message"
+            while [ "$errors_resolved" == "false" ]; do 
+                paths_with_merge_conflicts=()
+                paths_with_uncommited_changes=()
+                paths_untracked=()
+                files_status=$(git status -s)
+                merge_conflict_status_codes="DD AU UD UA DU AA UU"
+                untracked_status_code="??"
+                
+                while IFS= read -r line; do
+                    # Extract the file status
+                    status=$(echo "$line" | awk '{print $1}')
+                    # Extract the file name
+                    file=$(echo "$line" | awk '{$1=""; print $0}' | xargs)
+                    
+                    # Check if its a merge conflict
+                    is_merge_conflict="$(echo "$merge_conflict_status_codes" | grep -w "$status" -c)"
+                    if [ $is_merge_conflict -gt 0 ]; then
+                        paths_with_merge_conflicts+=("$file")
+                    # Check if there are files which has not been added
+                    elif [[ "$untracked_status_code" == "$status" ]]; then
+                        paths_untracked+=("$file")
+                    # Ramaining files are assumed uncommited changes
+                    else
+                        paths_with_uncommited_changes+=("$file")
+                    fi
+                done < <(git status -s)
+            
+                if [ -n "${paths_with_merge_conflicts}" ]; then
+                    printf "${red}The following paths contain merge conflicts that must be resolved:\n${normal}"
+                    for path in "${paths_with_merge_conflicts[@]}"; do
+                        printf "\t* ${red}${path}\n${normal}"
+                    done
+                fi
+
+                if [ -n "${paths_untracked}" ]; then
+                    printf "${red}The following paths have not been added yet:\n${normal}"
+                    for path in "${paths_untracked}"; do
+                        printf "\t* ${red}${path}\n${normal}"
+                    done
+                fi
+                
+                if [ -n "${paths_with_uncommited_changes}" ]; then
+                    printf "${red}The following paths have changes that must be commited:\n${normal}"
+                    for path in "${paths_with_uncommited_changes[@]}"; do
+                        printf "\t* ${red}${path}\n${normal}"
+                    done
+                fi         
+
+                printf "${red}After resolving the errors, "
+                read -p "press enter to continue"
+                printf "${normal}\n"
+
+                log=$(git cherry-pick --continue 2>&1)
+                
+                if [ $? -eq 0 ]; then
+                    errors_resolved="true"
+                    break
+                fi
+            done
+        fi
+        
         if [ $? -eq 0 ];then
             echo ""
             printf "${green}All selected products was successfully applied.${normal}"
