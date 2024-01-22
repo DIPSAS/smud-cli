@@ -8,9 +8,7 @@
 
 command=$1
 
-if [ $verbose ]; then
-      echo "command: $command" 
-fi
+print_verbose "\n${bold}command: $command\n" 
 
 
 if [ ! $command ] ; then

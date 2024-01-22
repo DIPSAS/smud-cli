@@ -17,7 +17,7 @@ cd $download_folder
 curl --ssl-no-revoke https://api.github.com/repos/DIPSAS/smud-cli/contents/$folder --no-progress-meter -o $download_json_file
 
 if [ ! -f "$download_json_file" ];then
-    echo "Missing $$download_json_file file"    
+    echo "Missing '$download_json_file' file"    
 fi
 download_names=($(cat $download_json_file | sed -n 's/.*"name": *"\([^"]*\)".*/\1/p'))
 download_urls=$(cat $download_json_file   | sed -n 's/.*"download_url": *"\([^"]*\)".*/\1/p')
