@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
-show_gitops_changes() 
+gitops_model__show_changes() 
 {
     printf "${white}List changes in Gitops model:${normal}\n"
     has_changes_command="git log $git_range --max-count=1 --no-merges $git_grep $diff_filter --pretty=format:1 -- $devops_model_filter"
     {
         if [ "$git_range" ]; then
-            run_command has-gitops-changes --command-from-var=has_changes_command --return-in-var=has_changes --debug-title='Check if any changes on gitops-model'
+            run_command has-gitops-changes --command-var=has_changes_command --return=has_changes --debug-title='Check if any changes on gitops-model'
         fi    
     } ||
     {
@@ -19,28 +19,28 @@ show_gitops_changes()
         fi
     fi
 
-    show_changelog_file "git"
-    list_gitops_files "git"
+    gitops_model__show_changelog_file "git"
+    gitops_model__list_files "git"
 }
 
-list_gitops_files()
+gitops_model__list_files()
 {
     from="$1"
     if [ "$from" = "git" ]; then
         context="Changed"
         if [ "$git_range" ]; then
-            list_gitops_files_command="git --no-pager log  $git_range --name-only --pretty= -- :$devops_model_filter|sort -u"
+            gitops_model__list_files_command="git --no-pager log  $git_range --name-only --pretty= -- :$devops_model_filter|sort -u"
         else
             echo "No revisions available to fetch $context GitOps-model files!"
         fi
     else
         context="Current"
-        list_gitops_files_command="git --no-pager ls-files -- $devops_model_filter"
+        gitops_model__list_files_command="git --no-pager ls-files -- $devops_model_filter"
     fi
         
     {
-        if [ "$list_gitops_files_command" ]; then
-            run_command list-gitops-files --command-var=list_gitops_files_command --return=changed_files --debug-title='Find all changed gitops-model files files'
+        if [ "$gitops_model__list_files_command" ]; then
+            run_command list-gitops-files --command-var=gitops_model__list_files_command --return=changed_files --debug-title='Find all changed gitops-model files files'
         fi
     } || 
     {
@@ -57,7 +57,7 @@ list_gitops_files()
     echo ""
 }
 
-show_changelog_file()
+gitops_model__show_changelog_file()
 {
     from="$1"
     if [ "$from" = "git" ]; then
