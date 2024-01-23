@@ -225,9 +225,10 @@ run_command()
     declare -A run_command_args
     
     parse_arguments run_command_args "$@"
-    get_arg command_from_var '--command-from-var,--command-var,-c-var' '' run_command_args
+    get_arg command_from_var '--command-var,--command-from-var,--command-in-var' '' run_command_args
     get_arg debug_title '--debug-title,-dt' '' run_command_args
-    get_arg return_in_var '--return-in-var,-var' '' run_command_args
+    get_arg return_in_var '--return,--return-var,--return-in-var' '' run_command_args
+    get_arg skip_error '--skip-error' '' run_command_args
 
     if [ "$command_from_var" ];then
         local -n command=$command_from_var
@@ -247,46 +248,22 @@ run_command()
         print_error "Missing 'command' parameter!"
         return 1
     fi
-    if [ "$debug_title" ]; then
+    if [ "$debug_title" ] && [ "$return_in_var" ]; then
         print_debug "$debug_title:\n$command"
     fi
     {
-
         run_command_result="$(sh -c "$command" 2>&1)"
     } || {
-        print_error "$run_command_result"
+        if [ ! "$skip_error" ]; then
+            print_error "$run_command_result"
+        fi
         return 1
     }
 
     if [ ! "$return_in_var" ];then
-        print_error "$run_command_result"
+        echo "$run_command_result"
     fi
 
-}
-
-can_run_git_log()
-{
-    if [ "$can_do_git" ]; then
-        check="git ls-files GETTING_STARTED.md README.md gitops-engine/argo/Chart.yaml environments/environments.example.yaml"
-        if [ "$check" ]; then
-            echo "$can_do_git"
-        fi
-    fi
-    
-}
-
-get_changelog_file()
-{
-    BASEDIR=$(dirname "$0")
-    file=$BASEDIR/CHANGELOG.md
-
-    if [ ! -f $file ]; then
-        BASEDIR=$(dirname "$BASEDIR")
-        file=$BASEDIR/CHANGELOG.md
-    fi
-    if [ -f $file ]; then
-        echo "$file"    
-    fi
 }
 
 parse_arguments ARGS $@
@@ -315,6 +292,7 @@ get_arg to_date '--to-date,-TD'
 get_arg grep '--grep'
 get_arg no_progress '--no-progress' "$silent"
 get_arg skip_files '--skip-files'
+get_arg files '--files'
 
 get_arg development '--development,-D,-DEV'
 get_arg external_test '--external-test,-ET'
@@ -475,7 +453,7 @@ else
 fi
 filter_=$filter
 filter=":$filter"
-
+devops_model_filter="GETTING_STARTED.md CHANGELOG.md applicationsets-staged/* environments/* gitops-engine/* repositories/*"
 diff_filter=''
 
 if [ $debug ];then

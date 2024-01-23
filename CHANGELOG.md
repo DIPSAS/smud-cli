@@ -1,3 +1,10 @@
+
+## Version 1.0.6
+- Implementet gitops-model list
+
+## Version 1.0.5
+- Changed list function from commit-focus to version-focus
+
 ## Version 1.0.4
 - Added init functiion with improvements. 
 - Improved help messages as well

@@ -74,7 +74,7 @@ list()
     fi
 
     if [ ! "$product" ] && [ ! "$installed" ]; then
-        show_gitopd_changes
+        show_gitops_changes
         return
     fi
 

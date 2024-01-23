@@ -114,41 +114,25 @@ show_date_help()
     echo "        --$s='1 week ago|5 days ago|1 year ago'"
 }
 
-show_gitopd_changes() 
+show_gitops_changes() 
 {
     printf "${white}List changes in Gitops model:${normal}\n"
-    filter=":applicationsets-staged gitops-engine/argo environments/templates CHANGELOG.md"
-    has_changes_command="git log $git_range --max-count=1 --no-merges $git_grep $diff_filter --pretty=format:\"%H\" -- $filter"
+    has_changes_command="git log $git_range --max-count=1 --no-merges $git_grep $diff_filter --pretty=format:1 -- $devops_model_filter"
     {
         if [ "$git_range" ]; then
             run_command has-gitops-changes --command-from-var=has_changes_command --return-in-var=has_changes --debug-title='Check if any changes on gitops-model'
         fi    
-        if [ ! "$has_changes" ]; then
-            if [ ! "$is_smud_dev_repo" ] && [ ! "$installed_gitops" ]; then
-                printf "${gray}No gitops-model changes found.${normal}\n"   
-                return 
-            fi
+    } ||
+    {
+        has_changes=""
+    }
+    if [ ! "$has_changes" ]; then
+        if [ ! "$is_smud_dev_repo" ] && [ ! "$installed_gitops" ]; then
+            printf "${gray}No gitops-model changes found.${normal}\n"   
+            return 
         fi
-    } ||
-    {
-        return
-    }
-    filter=":CHANGELOG.md"
-    echo ""
-    changelog_command="git rev-list $git_range $git_grep --reverse  $diff_filter -1 -- CHANGELOG.md"
-    {
-        if [ "$git_range" ]; then
-            run_command has-gitops-changelog --command-from-var=changelog_command --return-in-var=changelog_commits --debug-title='Check if any changes on gitops-model'
-        fi    
-    } ||
-    {
-        return
-    }
-    IFS=$'\n' read -rd '' -a changelog_commits <<< "$changelog_commits"
+    fi
 
-    for commit in "${changelog_commits[@]}"
-    do 
-        git --no-pager show $commit:CHANGELOG.md --no-color -- 
-    done
-    return
+    show_changelog_file "git"
+    list_gitops_files "git"
 }
