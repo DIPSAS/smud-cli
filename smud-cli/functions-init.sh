@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 
+# Rewrite this to not use arg array
 set_upstream()
 {
-    caller=$1
+    new_upstream="$1"
     if [ $help ]; then
         echo "${bold}smud set-upstream${normal}: Set upstream"
         printf "With Only ${green}set-upstream${normal}, Upstream '$default_upstream' will be configured if not configured yet. \n"
@@ -17,32 +18,24 @@ set_upstream()
     fi
 
     i=0
-    new_value="${arg[0]}"
-    echo "upstream url: $new_value"
-    while [[ "$new_value" == "--"* ]]; do
-        i=$((i+1))
-        new_value="${arg[$i]}"
-    done
+
+    echo "upstream url: $new_upstream"
     
-    remote_upstream=$(git config --get remote.upstream.url)
-    if [ $new_value ]; then
-        remote_upstream=$new_value
-        if [ $remote_upstream ]; then
-            git remote rm upstream > /dev/null 2>&1
-        fi    
-        if [ "$remote_upstream" = "-" ]; then
+    if [ $new_upstream ]; then
+        git remote rm upstream > /dev/null 2>&1
+        if [ "$new_upstream" = "-" ]; then
             printf "${gray}Upstream is removed${normal}\n"
             exit
         else
-            git remote add upstream $remote_upstream > /dev/null 2>&1
-            printf "${gray}Upstream configured with '$remote_upstream' ${normal}\n"
+            git remote add upstream $new_upstream > /dev/null 2>&1
+            printf "${gray}Upstream configured with '$new_upstream' ${normal}\n"
         fi
-    elif [ ! $remote_upstream ]; then
-        remote_upstream=$default_upstream
-        git remote add upstream $remote_upstream > /dev/null 2>&1
-        printf "${gray}Upstream configured with '$remote_upstream' ${normal}\n"
+    elif [ ! $new_upstream ]; then
+        new_upstream=$default_upstream
+        git remote add upstream $new_upstream > /dev/null 2>&1
+        printf "${gray}Upstream configured with '$new_upstream' ${normal}\n"
     elif [ ! "$caller" ]; then
-        printf "${gray}Upstream alredy configured with '$remote_upstream' ${normal}\n"
+        printf "${gray}Upstream alredy configured with '$new_upstream' ${normal}\n"
     fi
 }
 
@@ -54,63 +47,74 @@ set_origin()
     fi
     
     # Check if origin exists
-    remote_origin=$(git config --get remote.origin.url)
+    check_origin_command="git config --get remote.origin.url"
+    {
+        run_command check-origin --command-from-var=check_origin_command --return-in-var=remote_origin --debug-title='Checking if remote.origin.url exist in git config'
+    } || {
+        return
+    }
 
     # If string is empty, set the remote origin url
     if [ ! -n "$remote_origin" ]; then
         printf "${yellow}Remote repository origin is not set, please enter URL for the remote origin.\nOrigin URL: ${normal}"
         read user_set_remote_origin
-        $(git remote add origin $user_set_remote_origin)
-        printf "${green}Remote origin set to $user_set_remote_origin\n${normal}"
+        add_origin_command="git remote add origin $user_set_remote_origin"
+        {
+            run_command set-origin --command-from-var=add_origin_command --debug-title='Adding remote origin'
+        } || {
+            return
+        }
     fi
 }
 
 merge_upstream()
 {
-    printf "${gray}Merging upstream repository into local branch\n${normal}"
+    merge_upstream_command="git merge upstream/main"
     {
-        $(git merge upstream/main)
+        run_command merge-upstream --command-from-var=merge_upstream_command --debug-title='Merging upstream repository into local branch'
     } || {
-        printf "${red}Failed to merge repository into local branch\n${normal}"
+        return 
     }
-    printf "${green}Repository merged\n${normal}"
 }
 
 fetch_origin()
 {
     printf "${gray}Fetching origin\n${normal}"
+    fetch_origin_command="git fetch origin"
     {
-        $(git fetch origin > /dev/null 2>&1) 
+        run_command fetch-origin --command-from-var=fetch_origin_command --debug-title='Fetching origin'
     } || {
-        printf "Failed to fetch origin\n"
         return
     }
-    printf "${green}Origin fetched\n${normal}"
 } 
 
 init_repo()
 {
-    
-    $(git init > /dev/null 2>&1)
+    init_command="git init"
+    {
+        run_command init-repo --command-from-var=init_command --debug-title='Initializing repository'
+    } || {
+        return
+    }
     is_repo="true"
 
     branches=$(git branch)
     if [ ! -n "$branches" ]; then
         # "main" possibly not default branch name so create it
-        $(git checkout -b main)
+        create_main_branch="git checkout -b main"
+        {
+            run_command checkout-main --command-from-var=create_main_branch --debug-title='Creating main branch'
+        } || {
+            return
+        }
     fi 
 }
 
 fetch_upstream()
 {
-    printf "${gray}Fetching upstream\n${normal}"
-    {
-        $(git fetch upstream > /dev/null 2>&1) 
-    } || {
-        printf "Failed to fetch upstream\n"
-        return
-    }
-    printf "${green}Upstream fetched\n${normal}"
+    fetch_upstream_command="git fetch upstream"
+
+    run_command fetch-upstream --command-from-var=fetch_upstream_command --debug-title='Fetching upstream' || return
 } 
 
 # Initalizes repo, upstream and origin if not configured. Will always fetch upstream when called.
@@ -125,6 +129,10 @@ init()
         return
     fi
 
+    
+    upstream_url="${2:-}"
+    echo "$upstream_url"
+    
     remote_origin=$(git config --get remote.origin.url)
     remote_upstream=$(git config --get remote.upstream.url)
     
@@ -132,17 +140,18 @@ init()
         echo "Init repo"
         init_repo
         if [ ! -n "$remote_upstream" ]; then
-            set_upstream
+            set_upstream "$upstream_url"
         fi
         fetch_upstream
         merge_upstream
     else
         fetch_upstream
     fi
-
+    exit
     if [ ! -n "$remote_origin" ]; then
         echo "Setting and fetching origin"
         set_origin
         fetch_origin
+        printf "${green}Initalization complete.\n${normal}"
     fi
 }
