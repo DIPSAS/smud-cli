@@ -4,6 +4,7 @@
 . $(dirname "$0")/functions.sh
 . $(dirname "$0")/functions-list.sh
 . $(dirname "$0")/functions-upgrade.sh
+. $(dirname "$0")/functions-gitops.sh
 . $(dirname "$0")/functions-init.sh
 
 command=$1

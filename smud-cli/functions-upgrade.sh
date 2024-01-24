@@ -52,59 +52,80 @@ upgrade()
     init
 
     if [ ! "$is_repo" ]; then
-        printf "${red}'$(pwd)' is not a git repository! ${normal}\n"
+        print_error "'$(pwd)' is not a git repository!"
         return
     fi
 
+    if [ ! "$git_range" ]; then
+        print_error "No revisions available to upgrade!"
+        return
+    fi
+
+    local context="products"
+    local upgrade_filter=$filter
+    local yes_no="y"
     if [ ! "$product" ]; then
-        echo "Missing options:"
-        echo "  Products must be specified by [--products=, --product=, -P=] or [--all, -A]"
+        echo "No Products specified by [--products=, --product=, -P=] or [--all, -A]."
+        if [ ! "$silent" ]; then
+            ask yes_no $yellow "Do you want to upgrade the GitOps-model (Yes/No)?"
+        fi
+        if [ ! "$yes_no" = "yes" ]; then
+            local upgrade_filter=$devops_model_filter
+            local context="GitOps-model files"
+            print_gray "Swithced to '$context' context"
+        else
+            return
+        fi    
+    fi
+    has_changes_command="git log $git_range --max-count=1 --no-merges --pretty=format:1 -- $upgrade_filter"
+    run_command --has-commits --command-var=has_changes_command --return-var='has_commits' --debug-title='Check if any changes' || return
+    if [ ! "$has_commits" ]; then
+        print_gray "No $context found."   
         return
     fi
 
-    # Using commit or date ranges we only want to apply the latest commit in this range which is handled using --max-count=1
-    has_commits_command="git log $commit_range $date_range --max-count=1 --no-merges $diff_filter $git_grep --pretty=format:"%H" -- $filter"
-    run_command git-log --command-from-var=has_commits_command --return-in-var=has_commits --debug-title='Check if any changes to upgrade'
-
-    if [ ! $has_commits ]; then
-        printf "${gray}No products found.${normal}\n"   
-        return
-    fi
 
     yes_no="yes"
     if [ ! $silent ]; then
       list
-      echo ""
-      printf "${yellow}Do you want to continue upgrading the selected products (Yes/No)? ${normal}"
-      read yes_no
-      yes_no=$(echo "$yes_no" | tr '[:upper:]' '[:lower:]')
-      printf "${gray}You selected: $yes_no${normal}\n"
+      ask yes_no $yellow "Do you want to continue upgrading the selected $context (Yes/No)? "
     fi  
-    
+    local upgrade_error_code=0
     if [ "$yes_no" = "yes" ] || [ "$yes_no" = "y" ]; then
-        commits_command="git log $from_commit^..$to_commit $date_range  --reverse --no-merges $diff_filter $git_grep --pretty=format:"%H" -- $filter"
-        run_command git-commits --command-from-var=commits_command --return-in-var=commits --debug-title='Fetching commits'
-        # commits=$(echo $commits| sed -e 's/\n/ /g')
-        commits=$(echo $commits| sed -e ':a;N;$!ba;s/\n/ /g')
+        commits_command="git rev-list $from_commit^..$to_commit $date_range $git_grep --reverse --no-merges $diff_filter -- $upgrade_filter"
+        run_command --commits --command-var=commits_command --return-var=rev_list --skip-error=true --error-code=upgrade_error_code --debug-title='Find commits to upgrade'
+        
+        if [ $upgrade_error_code -eq 128 ]; then
+            commits_command="git rev-list $from_commit..$to_commit $date_range $git_grep --reverse --no-merges $diff_filter -- $upgrade_filter"
+            run_command --commits --command-var=commits_command --return-var=rev_list --debug-title='Find commits to upgrade' || return
+        fi
 
-        echo 'git cherry-pick '"$commits"''
-        printf "${gray}Running: git cherry-pick [commits]...${normal}\n"   
+        if [ ! "$rev_list" ]; then
+            print_gray "No $context found."   
+            return
+        fi
+        IFS=$'\n';read -rd '' -a rev_list <<< "$rev_list"
+        commits="${rev_list[@]}"
+        print_gray "Running: git cherry-pick [commits]...\n"   
+        print_debug "$commits"
         # If there are any current unapplied changes, cherry pick will fail. Catch this.
-        cherry_pick_command="git cherry-pick $commits"
-        run_command cherry-pick --command-from-var=cherry_pick_command --return-in-var=log --debug-title='Running cherry-pick'
-    
+        cherrypick_commits_command="git cherry-pick $commits"
+        run_command cherry-pick --command-var=cherrypick_commits_command --return-var=log --debug-title='Start cherry-pick' || error_message=$log
+
         # Check if cherry-pick in progress
         error_index="$(echo "$error_message" | grep "cherry-pick is already in progress" -c)"
         if [ $error_index -gt 0 ]; then
             error_message=""
-            log=$(git cherry-pick --continue 2>&1) || error_message="$log"
+            cherrypick_commits_command="git cherry-pick --continue"
+            run_command cherry-pick --command-var=cherrypick_commits_command --return-var=log --debug-title='Continue cherry-pick' || error_message=$log
         fi
 
         # Check if cherry-pick was resolved
         error_index="$(echo "$error_message" | grep "The previous cherry-pick is now empty, possibly due to conflict resolution" -c)"
         if [ $error_index -gt 0 ]; then
             error_message=""
-            log=$(git cherry-pick --skip 2>&1) || error_message="$log"
+            cherrypick_commits_command="git cherry-pick --skip"
+            run_command cherry-pick --command-var=cherrypick_commits_command --return-var=log --debug-title='Skip cherry-pick' || error_message=$log
         fi
 
         # Loop until no conflicts
@@ -153,7 +174,7 @@ upgrade()
         
         if [ $? -eq 0 ];then
             echo ""
-            printf "${green}All selected products was successfully applied.${normal}"
+            printf "${green}All selected $context was successfully upgraded.${normal}"
             echo ""
             if [ ! $silent ] && [ ! $remote ]; then
                 printf "${yellow}Do you want to push applied changes to remote branch (Yes/No)? ${normal}"
@@ -184,7 +205,7 @@ upgrade()
             printf "${gray}$log${normal}\n"    
             yes_no="no"
             echo ""
-            printf "${red}Selected products was NOT successfully applied.${normal}\n"
+            printf "${red}Selected $context was NOT successfully applied.${normal}\n"
             if [ ! $silent ]; then
                 printf "${yellow}Do you want to abort the upgrade-operation (Yes/No)? ${normal}"
                 read yes_no

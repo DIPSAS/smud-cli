@@ -89,14 +89,14 @@ get_arg()
     for key in "${keys[@]}"
     do
         key=$(echo "$key"|xargs) || print_error $key
-        # echo "get_args: key='$key'"
+        # print_verbose "get_args: key='$key'"
         if [ ! "$value" ];then
             if [ ! "$4" ];then
                 value="${ARGS[$key]}"
-                # echo "*** get_args(0): { key='$key', value='$value' }"                
+                # print_verbose "*** get_args(0): { key='$key', value='$value' }"                
             else
                 value="${get_arg_args[$key]}"
-                # echo "*** get_args(1): { key='$key', value='$value' }"                
+                # print_verbose "*** get_args(1): { key='$key', value='$value' }"                
             fi
         fi
         if [ "$value" ]; then
@@ -117,35 +117,70 @@ fix_print_message()
 
 print()
 {
-    if [ !"$msg" ];then
+    if [ "$1" ];then
+        msg=`fix_print_message $1`
+        printf "$msg\n"
+    else
         echo ""
     fi
 
-    msg=`fix_print_message $1`
-    printf "$msg\n"
+}
+
+print_color() 
+{
+    if [ "$2" ];then
+        msg=`fix_print_message $2`
+        printf "$1$msg$normal\n"
+    else
+        echo ""
+    fi
+}
+
+
+print_gray() 
+{
+    print_color $gray $1
 }
 
 print_error() 
 {   
-    msg=`fix_print_message $1`
-    printf "${gray}$msg${normal}\n"
+    print_color $red "$1"
 }
 
 print_debug() 
 {
     if [ "$debug" ]; then
-        msg=`fix_print_message $1`
-        printf "${gray}$msg${normal}\n"
+        print_gray "$1"
     fi
 }
 
 print_verbose() 
 {
     if [ "$verbose" ]; then
-        msg=`fix_print_message $1`
-        printf "${gray}$msg${normal}\n"
+        print_gray "$1"
     fi
 }
+
+lower()
+{
+    local -n str=$1
+    str=$(echo "$str" | tr '[:upper:]' '[:lower:]')
+}
+
+ask()
+{
+    local -n answer=$1
+    local color=$2
+    local question=$3
+
+    echo ""
+    print_color $color $question
+    read  answer
+    lower answer
+    print_gray "You selected: $answer"
+
+}
+
 
 progressbar__init()
 {
@@ -224,9 +259,11 @@ run_command()
     declare -A run_command_args
     
     parse_arguments run_command_args "$@"
-    get_arg command_from_var '--command-from-var,--command-var,-c-var' '' run_command_args
+    get_arg command_from_var '--command-var,--command-from-var,--command-in-var' '' run_command_args
     get_arg debug_title '--debug-title,-dt' '' run_command_args
-    get_arg return_in_var '--return-in-var,-var' '' run_command_args
+    get_arg return_in_var '--return-var,--return-in-var' '' run_command_args
+    get_arg error_code '--error-code' '' run_command_args
+    get_arg skip_error '--skip-error' '' run_command_args
 
     if [ "$command_from_var" ];then
         local -n command=$command_from_var
@@ -238,54 +275,53 @@ run_command()
     if [ "$return_in_var" ];then
         local -n run_command_result=$return_in_var
     fi
+    if [ "$error_code" ];then
+        local -n run_command_error_code=$error_code
+    fi
+
+    run_command_error_code=0
+    run_command_result=""
+
 
     # echo "command: $command"
-    # echo "debug_title: $debug_title, return_var:$return_in_var"
-
+    if [ "$verbose" ]; then
+        print_debug "run_command(): command_from_var:'$command_from_var'"
+        print_debug "run_command(): return_in_var:'$return_in_var'"
+        print_debug "run_command(): debug_title: '$debug_title'"
+    fi
     if [ ! "$command" ]; then
         print_error "Missing 'command' parameter!"
         return 1
     fi
-    if [ "$debug_title" ]; then
+    if [ "$debug" ] && [ "$return_in_var" ]; then
+        if [ ! "$debug_title" ]; then
+            local debug_title="Running command"
+        fi
         print_debug "$debug_title:\n$command"
     fi
     {
-
         run_command_result="$(sh -c "$command" 2>&1)"
+        run_command_error_code=$?
     } || {
-        print_error "$run_command_result"
-        return 1
+        run_command_error_code=$?
+        if [ $run_command_error_code -eq 0 ]; then
+            run_command_error_code=1
+        fi 
     }
 
-    if [ ! "$return_in_var" ];then
-        print_error "$run_command_result"
-    fi
-
-}
-
-can_run_git_log()
-{
-    if [ "$can_do_git" ]; then
-        check="git ls-files GETTING_STARTED.md README.md gitops-engine/argo/Chart.yaml environments/environments.example.yaml"
-        if [ "$check" ]; then
-            echo "$can_do_git"
+    if [ $run_command_error_code -gt 0 ]; then
+        if [ ! "$skip_error" ] || [ "$debug" ]; then
+            if [ "$return_in_var" ]; then
+                print_error "$run_command_result"
+            fi
         fi
+        return $run_command_error_code
     fi
-    
-}
 
-get_changelog_file()
-{
-    BASEDIR=$(dirname "$0")
-    file=$BASEDIR/CHANGELOG.md
+    if [ ! "$return_in_var" ];then
+        echo "$run_command_result"
+    fi
 
-    if [ ! -f $file ]; then
-        BASEDIR=$(dirname "$BASEDIR")
-        file=$BASEDIR/CHANGELOG.md
-    fi
-    if [ -f $file ]; then
-        echo "$file"    
-    fi
 }
 
 parse_arguments ARGS $@
@@ -314,6 +350,7 @@ get_arg to_date '--to-date,-TD'
 get_arg grep '--grep'
 get_arg no_progress '--no-progress' "$silent"
 get_arg skip_files '--skip-files'
+get_arg files '--files'
 
 get_arg development '--development,-D,-DEV'
 get_arg external_test '--external-test,-ET'
@@ -474,7 +511,7 @@ else
 fi
 filter_=$filter
 filter=":$filter"
-
+devops_model_filter="GETTING_STARTED.md CHANGELOG.md applicationsets-staged/* environments/* gitops-engine/* repositories/*"
 diff_filter=''
 
 if [ $debug ];then
@@ -497,6 +534,9 @@ if [ $debug ];then
     fi
 fi
 git_range="$(echo "$commit_range $date_range"|xargs)"
+if [ "$git_range" ] && [ "$git_grep" ]; then
+    git_range="$git_range $git_grep"
+fi
 # has_any_commits=$(git log ..5e21036a024abd6eb8d1aaa9ffe9f6c14687821c --max-count=1 --no-merges $git_pretty_commit -- $filter)
 # echo "hit: $has_any_commits"
 # exit
