@@ -146,7 +146,13 @@ upgrade()
                     # Extract the file name
                     file=$(echo "$line" | cut -c 4-)
                     # Add the file to the map where the status is the key
-                    status_map["$status_code"]=$file
+                     if [[ -n "${status_map["$status_code"]}" ]]; then
+                        # If it exists, append the current file to the existing array
+                        status_map["$status_code"]+=" $file"
+                    else
+                        # If it doesn't exist, create a new array with the current file
+                        status_map["$status_code"]=$file
+                    fi
                 done < <(git status -s)
 
                 merge_conflict_status_codes="DD AU UD UA DU AA UU"
@@ -154,11 +160,15 @@ upgrade()
 
                 printf "${red}The follwing contains changes that must be resolved:\n${normal}" 
                 for status_code in "${!status_map[@]}"; do
-                    filename="${!status_map[$status_code]}"
+                    filenames="${status_map[$status_code]}"
                     description=$(get_status_description "$status_code")
-                    printf "* ${red}File: ${gray}$filename\t${red}Description: ${gray}$description${normal}\n"
+                    printf "\t${red}Status: ${gray}$description\n${normal}"
+                    IFS=' ' read -ra filenames_array <<< "$filenames"
+                    for filename in "${filenames_array[@]}"; do
+                        printf "\t* ${gray}$filename\n${normal}"
+                    done 
                 done
-                echo "$error_message"
+               
                 printf "${red}After resolving the errors, "
                 read -p "press enter to continue"
                 printf "${normal}\n"
