@@ -1,5 +1,14 @@
 #!/usr/bin/env bash
 
+trap clean_up INT
+
+clean_up()
+{
+    abort_cherry_pick_command="git cherry-pick --abort"
+    run_command abort-cherry-pick --command-from-var abort_cherry_pick_command --debug-title="Aborting cherry-pick"
+    exit 0
+}
+
 upgrade()
 {
     if [ "$debug" ] && [ "$git_grep" ]; then
