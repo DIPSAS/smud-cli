@@ -34,18 +34,28 @@ show_valid_commands()
 
 }
 
+get_changelog_file()
+{
+    BASEDIR=$(dirname "$0")
+    file=$BASEDIR/CHANGELOG.md
+
+    if [ ! -f $file ]; then
+        BASEDIR=$(dirname "$BASEDIR")
+        file=$BASEDIR/CHANGELOG.md
+    fi
+    if [ -f $file ]; then
+        echo "$file"    
+    fi
+}
+
 help()
 {
-    file="$(get_changelog_file)"
-    if [ $file ]; then
-        changes=(`cat $file |sed -e 's/## Version /\n/g'`)
-        version="${changes[0]}"
-    fi
+    version="$(changelog_get_current_version)"
 
     # Print information
     echo "${bold}smud${normal}: Help dealing with products in the GitOps repository."
-    if [ $version ]; then
-        echo "      Version "$version""
+    if [ "$version" ]; then
+        echo "      Version $version"
         echo ""
     fi
 
@@ -66,6 +76,20 @@ show_invalid_command()
     show_valid_commands
 }
 
+changelog_get_current_version() 
+{
+    file=$1    
+    if [ ! "$file" ]; then
+        file="$(get_changelog_file)"
+    fi
+    if [ "$file" ]; then
+        IFS='#'
+        changes=(`cat $file`)
+        version="$(echo "${changes[2]}"|sed -e 's/ Version //g'| cut -d "-" -f 1 | tr -d '\n' )"
+    fi
+    echo $version
+}
+
 version()
 {
     file="$(get_changelog_file)"
@@ -73,7 +97,7 @@ version()
     if [ $file ]; then
         changes=(`cat $file |sed -e 's/## Version /\n/g'`)
         printf "${bold}smud version${normal}: Show the version of smud CLI\n" 
-        echo "Current Version "${changes[0]}""
+        echo "Current Version "$(changelog_get_current_version)""
         echo ""
         echo "Changelog:"
         cat $file| sed -e 's/## //g'

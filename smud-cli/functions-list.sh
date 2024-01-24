@@ -5,7 +5,7 @@ list()
     if [ "$debug" ] && [ "$git_grep" ]; then
         echo "git_grep: $git_grep"
     fi
-    if [ $help ]; then
+    if [ "$help" ]; then
         echo "${bold}smud list${normal} [options]: List ${bold}updated/new${normal} products ready for installation or current products installed."
         echo ""
         echo "Options:"

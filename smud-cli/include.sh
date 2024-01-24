@@ -39,26 +39,26 @@ parse_arguments()
             if [ ! "$s" ] || [ "$s" = " " ]; then
                 continue
             fi
-            local s=$(echo "$s"|xargs)
+            local s=$(echo "$s"|xargs -d ' '| tr -d '\n')
             # echo "s: $s"
             local s=$(echo "-$s" |sed -e 's/_sep_/-/g')
             # echo "s: $s"
             IFS='='; read -ra arg <<< "$s"
-            local key=$(echo "${arg[0]}"|xargs)
+            local key=$(echo "${arg[0]}"|xargs -d ' '| tr -d '\n')
             local value="${arg[1]}"
             if [ ! "$value" ]; then
                 local c=$(echo "$s" | grep ' ' -c)
                 if [ $c -gt 0 ]; then
                     IFS=' ';read -ra arg <<< "$s"
                     local key=$(echo "${arg[0]}")
-                    local value=$(echo "$s"|sed -e "s/$key //g"|xargs)
+                    local value=$(echo "$s"|sed -e "s/$key //g"|xargs -d ' '| tr -d '\n')
                 fi
             fi
             local value="${value:-true}"
 
             if [ "$key" ]; then
-                key="$(echo "$key"|sed -e "s/---/--/g"|xargs)"
-                local value=$(echo "$value"|xargs)
+                key="$(echo "$key"|sed -e "s/---/--/g"|xargs -d ' '| tr -d '\n')"
+                local value=$(echo "$value"|xargs -d ' '| tr -d '\n')
                 parse_arguments_args["$key"]="$value"
             fi
         done
@@ -72,7 +72,7 @@ parse_arguments()
         do 
             key="${key}"
             value="${parse_arguments_args[${key}]}"
-            print_verbose "{ key: '$key', value='$value'}"; 
+            print_verbose "{ key: '$key', value='$value' }"; 
         done
     fi
 }
@@ -88,7 +88,7 @@ get_arg()
     value=""
     for key in "${keys[@]}"
     do
-        key=$(echo "$key"|xargs) || print_error $key
+        key=$(echo "$key"|xargs -d ' '| tr -d '\n') || print_error $key
         # print_verbose "get_args: key='$key'"
         if [ ! "$value" ];then
             if [ ! "$4" ];then
@@ -117,7 +117,7 @@ fix_print_message()
 
 print()
 {
-    if [ "$1" ];then
+    if [ $# -gt 0 ];then
         msg=`fix_print_message $1`
         printf "$msg\n"
     else
@@ -128,9 +128,12 @@ print()
 
 print_color() 
 {
-    if [ "$2" ];then
-        msg=`fix_print_message $2`
-        printf "$1$msg$normal\n"
+    if [ $# -gt 1 ];then
+        color="$1"
+        shift
+        IFS=$'\n'
+        msg=`fix_print_message $1`
+        printf "$color$msg$normal\n"
     else
         echo ""
     fi
@@ -327,7 +330,7 @@ run_command()
 parse_arguments ARGS $@
 curr_dir=$(pwd)
 get_arg examples '--examples,--ex,-ex'
-get_arg help '--help,-h' "$example"
+get_arg help '--help,-?,-h' "$examples"
 get_arg separator '--separator,-sep'
 get_arg col_separator '--col-separtor,-colsep', ' '
 get_arg new '--new'
