@@ -92,7 +92,7 @@ list()
     has_changes_command="git log $git_range --max-count=1 --no-merges --pretty=format:has_commits -- $filter"
     {
         if [ "$git_range" ]; then
-            run_command git-log --command-var=has_changes_command --return=has_commits --debug-title='Check if any changes'
+            run_command git-log --command-var=has_changes_command --return-var=has_commits --debug-title='Check if any changes'
         fi    
         if [ ! "$has_commits" ]; then
             if [ ! "$is_smud_dev_repo" ] && [ ! "$installed" ]; then
@@ -135,7 +135,7 @@ product_infos__find_latest_products_with_version()
     fi
     files_command="git --no-pager grep chartVersion $commit_filter -- :$app_files_filter"
     {
-        run_command --files --command-var=files_command --return=changed_files --debug-title='Find all changed files'
+        run_command --files --command-var=files_command --return-var=changed_files --debug-title='Find all changed files'
     } || {
         return
     }
@@ -231,7 +231,7 @@ product_infos__find_latest_products_with_files()
     fi
     
     {
-        run_command changed-files --command-var=files_command --return=changed_files --debug-title='Find all changed files'
+        run_command changed-files --command-var=files_command --return-var=changed_files --debug-title='Find all changed files'
     } || {
         return
     }
@@ -625,7 +625,7 @@ get_latest_version()
                             # echo "hit:$git_range"
                             if [ "$git_range" ]; then
                                 product_latest_commit_local="\$(git log $git_range --diff-filter=ACMRTUB --max-count=1 --pretty=format:%H -- :$file)"
-                                # run_command --latest-commit --command-var=latest_commit_command --return=product_latest_commit --debug-title='Find latest commit'
+                                # run_command --latest-commit --command-var=latest_commit_command --return-var=product_latest_commit --debug-title='Find latest commit'
                             fi
                         } || {
                             return
@@ -637,7 +637,7 @@ get_latest_version()
 
                         latest_version_command="git --no-pager grep "chartVersion:" $product_latest_commit_local:$file"
                         {
-                            run_command --latest_version --command-var=latest_version_command --return=product_latest_version_local --debug-title='Find latest versions from conent'
+                            run_command --latest_version --command-var=latest_version_command --return-var=product_latest_version_local --debug-title='Find latest versions from conent'
                             # echo "product_latest_version_local(0): '$product_latest_version_local'"
                             product_latest_version_local="$(echo "$product_latest_version_local" | cut -d ':' -f 4 | sed -e 's/"//g'|xargs)"
                             product_latest_version=$product_latest_version_local

@@ -3,10 +3,10 @@
 gitops_model__show_changes() 
 {
     printf "${white}List changes in Gitops model:${normal}\n"
-    has_changes_command="git log $git_range --max-count=1 --no-merges $git_grep $diff_filter --pretty=format:1 -- $devops_model_filter"
+    has_changes_command="git log $git_range --max-count=1 --no-merges $diff_filter --pretty=format:1 -- $devops_model_filter"
     {
         if [ "$git_range" ]; then
-            run_command has-gitops-changes --command-var=has_changes_command --return=has_changes --debug-title='Check if any changes on gitops-model'
+            run_command has-gitops-changes --command-var=has_changes_command --return-var=has_changes --debug-title='Check if any changes on gitops-model'
         fi    
     } ||
     {
@@ -27,20 +27,20 @@ gitops_model__list_files()
 {
     from="$1"
     if [ "$from" = "git" ]; then
-        context="Changed"
+        local context="Changed"
         if [ "$git_range" ]; then
             gitops_model__list_files_command="git --no-pager log  $git_range --name-only --pretty= -- :$devops_model_filter|sort -u"
         else
             echo "No revisions available to fetch $context GitOps-model files!"
         fi
     else
-        context="Current"
+        local context="Current"
         gitops_model__list_files_command="git --no-pager ls-files -- $devops_model_filter"
     fi
         
     {
         if [ "$gitops_model__list_files_command" ]; then
-            run_command list-gitops-files --command-var=gitops_model__list_files_command --return=changed_files --debug-title='Find all changed gitops-model files files'
+            run_command list-gitops-files --command-var=gitops_model__list_files_command --return-var=changed_files --debug-title='Find all changed gitops-model files files'
         fi
     } || 
     {
@@ -63,10 +63,10 @@ gitops_model__show_changelog_file()
     if [ "$from" = "git" ]; then
         revisions=$git_range
         if [ ! "$revisions" ]; then
-            echo "No revision"
+            echo "No revisions available to fetch GitOps-model Changelog!"
             return
         fi
-        context="Latest"
+        local context="Latest"
         show_changelog_commit_command="git rev-list $revisions -1 -- :CHANGELOG.md"
         {
             run_command --show_changelog_commit --command-var show_changelog_commit_command --return changelog_commit
@@ -77,7 +77,7 @@ gitops_model__show_changelog_file()
             show_changelog_command=""
         }
     else
-        context="Current"
+        local context="Current"
         BASEDIR=$(dirname "$0")
         file=$BASEDIR/CHANGELOG.md
         if [ -f $file ]; then
@@ -92,7 +92,7 @@ gitops_model__show_changelog_file()
     if [ "$changelog_content" ]; then     
         print "$context GitOps-model Changelog:"
         echo $changelog_content
-        IFS=$'\n' read -rd '' -a changelog_commits <<< "$changelog_commits"
+        IFS=$'\n';read -rd '' -a changelog_commits <<< "$changelog_commits"
 
         for commit in "${changelog_commits[@]}"
         do 
