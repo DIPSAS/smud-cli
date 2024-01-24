@@ -19,7 +19,7 @@ set_upstream()
 
     i=0
     
-    if [ $new_upstrea                   m ]; then
+    if [ $new_upstream ]; then
         remove_upstream_command="git remote rm upstream"
         run_command remove-upstream --command-from-var=remove_upstream_command --debug-title='Removing upstream config URL'
         if [ "$new_upstream" = "-" ]; then
@@ -68,7 +68,6 @@ merge_upstream()
 
 fetch_origin()
 {
-    printf "${gray}Fetching origin\n${normal}"
     fetch_origin_command="git fetch origin"
     run_command fetch-origin --command-from-var=fetch_origin_command --debug-title='Fetching origin' || return
 } 
@@ -105,15 +104,18 @@ init()
         return
     fi
 
-    
     upstream_url="${2:-}"
-    echo "$upstream_url"
     
     remote_origin=$(git config --get remote.origin.url)
     remote_upstream=$(git config --get remote.upstream.url)
     
     if [ ! "$is_repo" ]; then
-        echo "Init repo"
+        local yes_no="y"
+        ask yes_no $yellow "The current directory does not seem to be a git repository\nWould you like to initialize the repository and merge the remote upstream? (yes/no)"
+        if [ ! "$yes_no" = "yes" ]; then
+            printf "${yellow}Aborting"
+            exit 0
+        fi
         init_repo
         if [ ! -n "$remote_upstream" ]; then
             set_upstream "$upstream_url"

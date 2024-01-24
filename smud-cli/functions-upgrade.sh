@@ -188,6 +188,9 @@ upgrade()
                     errors_resolved="true"
                     break
                 fi
+
+                # Clear the status_map
+                unset status_map
             done
         fi
         
@@ -196,7 +199,7 @@ upgrade()
             printf "${green}All selected $context was successfully upgraded.${normal}"
             echo ""
             if [ ! $silent ] && [ ! $remote ]; then
-                printf "${yellow}Do you want to push applied changes to remote branch (Yes/No)? ${normal}"
+                printf "${yellow}Do you want to push applied changes to remote branch $remote (Yes/No)? ${normal}"
                 read yes_no
                 yes_no=$(echo "$yes_no" | tr '[:upper:]' '[:lower:]')
                 printf "${gray}You selected: $yes_no${normal}\n"
