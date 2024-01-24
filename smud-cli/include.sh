@@ -80,7 +80,6 @@ parse_arguments()
 get_arg()
 {
     local -n value=$1
-
     if [ "$4" ];then
         local -n get_arg_args=$4
     fi
@@ -498,7 +497,6 @@ if [ $debug ];then
     fi
 fi
 git_range="$(echo "$commit_range $date_range"|xargs)"
-
 # has_any_commits=$(git log ..5e21036a024abd6eb8d1aaa9ffe9f6c14687821c --max-count=1 --no-merges $git_pretty_commit -- $filter)
 # echo "hit: $has_any_commits"
 # exit

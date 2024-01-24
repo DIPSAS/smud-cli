@@ -18,21 +18,22 @@ set_upstream()
     fi
 
     i=0
-
-    echo "upstream url: $new_upstream"
     
-    if [ $new_upstream ]; then
-        git remote rm upstream > /dev/null 2>&1
+    if [ $new_upstrea                   m ]; then
+        remove_upstream_command="git remote rm upstream"
+        run_command remove-upstream --command-from-var=remove_upstream_command --debug-title='Removing upstream config URL'
         if [ "$new_upstream" = "-" ]; then
             printf "${gray}Upstream is removed${normal}\n"
             exit
         else
-            git remote add upstream $new_upstream > /dev/null 2>&1
+            add_upstream_command="git remote add upstream $new_upstream"
+            run_command add_upstream_command --command-from-var=add_upstream_command --debug-title='Adding upstream with user specified URL'
             printf "${gray}Upstream configured with '$new_upstream' ${normal}\n"
         fi
     elif [ ! $new_upstream ]; then
         new_upstream=$default_upstream
-        git remote add upstream $new_upstream > /dev/null 2>&1
+        add_upstream_command="git remote add upstream $new_upstream"
+        run_command add_upstream_command --command-from-var=add_upstream_command --debug-title='Adding upstream with default URL'
         printf "${gray}Upstream configured with '$new_upstream' ${normal}\n"
     elif [ ! "$caller" ]; then
         printf "${gray}Upstream alredy configured with '$new_upstream' ${normal}\n"
@@ -48,72 +49,47 @@ set_origin()
     
     # Check if origin exists
     check_origin_command="git config --get remote.origin.url"
-    {
-        run_command check-origin --command-from-var=check_origin_command --return-in-var=remote_origin --debug-title='Checking if remote.origin.url exist in git config'
-    } || {
-        return
-    }
+    run_command check-origin --command-from-var=check_origin_command --return-in-var=remote_origin --debug-title='Checking if remote.origin.url exist in git config' || return
 
     # If string is empty, set the remote origin url
     if [ ! -n "$remote_origin" ]; then
         printf "${yellow}Remote repository origin is not set, please enter URL for the remote origin.\nOrigin URL: ${normal}"
         read user_set_remote_origin
         add_origin_command="git remote add origin $user_set_remote_origin"
-        {
-            run_command set-origin --command-from-var=add_origin_command --debug-title='Adding remote origin'
-        } || {
-            return
-        }
+        run_command set-origin --command-from-var=add_origin_command --debug-title='Adding remote origin' || return
     fi
 }
 
 merge_upstream()
 {
     merge_upstream_command="git merge upstream/main"
-    {
-        run_command merge-upstream --command-from-var=merge_upstream_command --debug-title='Merging upstream repository into local branch'
-    } || {
-        return 
-    }
+    run_command merge-upstream --command-from-var=merge_upstream_command --debug-title='Merging upstream repository into local branch' || return
 }
 
 fetch_origin()
 {
     printf "${gray}Fetching origin\n${normal}"
     fetch_origin_command="git fetch origin"
-    {
-        run_command fetch-origin --command-from-var=fetch_origin_command --debug-title='Fetching origin'
-    } || {
-        return
-    }
+    run_command fetch-origin --command-from-var=fetch_origin_command --debug-title='Fetching origin' || return
 } 
 
 init_repo()
 {
     init_command="git init"
-    {
-        run_command init-repo --command-from-var=init_command --debug-title='Initializing repository'
-    } || {
-        return
-    }
+    run_command init-repo --command-from-var=init_command --debug-title='Initializing repository' || return
     is_repo="true"
 
     branches=$(git branch)
     if [ ! -n "$branches" ]; then
         # "main" possibly not default branch name so create it
         create_main_branch="git checkout -b main"
-        {
-            run_command checkout-main --command-from-var=create_main_branch --debug-title='Creating main branch'
-        } || {
-            return
-        }
+        run_command checkout-main --command-from-var=create_main_branch --debug-title='Creating main branch' || return
     fi 
 }
 
 fetch_upstream()
 {
     fetch_upstream_command="git fetch upstream"
-
     run_command fetch-upstream --command-from-var=fetch_upstream_command --debug-title='Fetching upstream' || return
 } 
 
@@ -147,7 +123,7 @@ init()
     else
         fetch_upstream
     fi
-    exit
+
     if [ ! -n "$remote_origin" ]; then
         echo "Setting and fetching origin"
         set_origin

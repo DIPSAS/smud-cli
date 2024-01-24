@@ -63,7 +63,8 @@ upgrade()
     fi
 
     # Using commit or date ranges we only want to apply the latest commit in this range which is handled using --max-count=1
-    has_commits=$(git log $commit_range $date_range --max-count=1 --no-merges $diff_filter $git_grep --pretty=format:"%H" -- $filter)
+    has_commits_command="git log $commit_range $date_range --max-count=1 --no-merges $diff_filter $git_grep --pretty=format:"%H" -- $filter"
+    run_command git-log --command-from-var=has_commits_command --return-in-var=has_commits --debug-title='Check if any changes to upgrade'
 
     if [ ! $has_commits ]; then
         printf "${gray}No products found.${normal}\n"   
@@ -81,13 +82,17 @@ upgrade()
     fi  
     
     if [ "$yes_no" = "yes" ] || [ "$yes_no" = "y" ]; then
-        commits=$(git log $from_commit^..$to_commit $date_range  --reverse --no-merges $diff_filter $git_grep --pretty=format:"%H" -- $filter)
-        commits=$(echo $commits| sed -e 's/\n/ /g')
-        printf "${gray}Running: git cherry-pick [commits]...${normal}\n"   
-        
-        # If there are any current unapplied changes, cherry pick will fail. Catch this.
-        log=$(git cherry-pick $commits 2>&1) || error_message="$log"
+        commits_command="git log $from_commit^..$to_commit $date_range  --reverse --no-merges $diff_filter $git_grep --pretty=format:"%H" -- $filter"
+        run_command git-commits --command-from-var=commits_command --return-in-var=commits --debug-title='Fetching commits'
+        # commits=$(echo $commits| sed -e 's/\n/ /g')
+        commits=$(echo $commits| sed -e ':a;N;$!ba;s/\n/ /g')
 
+        echo 'git cherry-pick '"$commits"''
+        printf "${gray}Running: git cherry-pick [commits]...${normal}\n"   
+        # If there are any current unapplied changes, cherry pick will fail. Catch this.
+        cherry_pick_command="git cherry-pick $commits"
+        run_command cherry-pick --command-from-var=cherry_pick_command --return-in-var=log --debug-title='Running cherry-pick'
+    
         # Check if cherry-pick in progress
         error_index="$(echo "$error_message" | grep "cherry-pick is already in progress" -c)"
         if [ $error_index -gt 0 ]; then
@@ -103,58 +108,36 @@ upgrade()
         fi
 
         # Loop until no conflicts
+        # Print status in plain text after each file listing
+        # If the conflict is UD (delete happened in remote) resolve it automatically using "merge-strategy theirs"
         if [ -n "$error_message" ]; then
             errors_resolved="false"
             printf "${red}Cherry-pick ran into errors that must be resolved manually.\n${normal}"
             #echo "$error_message"
             while [ "$errors_resolved" == "false" ]; do 
-                paths_with_merge_conflicts=()
-                paths_with_uncommited_changes=()
-                paths_untracked=()
                 files_status=$(git status -s)
-                merge_conflict_status_codes="DD AU UD UA DU AA UU"
-                untracked_status_code="??"
-                
+
+                declare -A status_map
+
                 while IFS= read -r line; do
                     # Extract the file status
-                    status=$(echo "$line" | awk '{print $1}')
+                    status_code=$(echo "$line" | cut -c -2)
                     # Extract the file name
-                    file=$(echo "$line" | awk '{$1=""; print $0}' | xargs)
-                    
-                    # Check if its a merge conflict
-                    is_merge_conflict="$(echo "$merge_conflict_status_codes" | grep -w "$status" -c)"
-                    if [ $is_merge_conflict -gt 0 ]; then
-                        paths_with_merge_conflicts+=("$file")
-                    # Check if there are files which has not been added
-                    elif [[ "$untracked_status_code" == "$status" ]]; then
-                        paths_untracked+=("$file")
-                    # Ramaining files are assumed uncommited changes
-                    else
-                        paths_with_uncommited_changes+=("$file")
-                    fi
+                    file=$(echo "$line" | cut -c 4-)
+                    # Add the file to the map where the status is the key
+                    status_map["$status_code"]=$file
                 done < <(git status -s)
-            
-                if [ -n "${paths_with_merge_conflicts}" ]; then
-                    printf "${red}The following paths contain merge conflicts that must be resolved:\n${normal}"
-                    for path in "${paths_with_merge_conflicts[@]}"; do
-                        printf "\t* ${red}${path}\n${normal}"
-                    done
-                fi
 
-                if [ -n "${paths_untracked}" ]; then
-                    printf "${red}The following paths have not been added yet:\n${normal}"
-                    for path in "${paths_untracked}"; do
-                        printf "\t* ${red}${path}\n${normal}"
-                    done
-                fi
-                
-                if [ -n "${paths_with_uncommited_changes}" ]; then
-                    printf "${red}The following paths have changes that must be commited:\n${normal}"
-                    for path in "${paths_with_uncommited_changes[@]}"; do
-                        printf "\t* ${red}${path}\n${normal}"
-                    done
-                fi         
+                merge_conflict_status_codes="DD AU UD UA DU AA UU"
+                untracked_status_code="??"
 
+                printf "${red}The follwing contains changes that must be resolved:\n${normal}" 
+                for status_code in "${!status_map[@]}"; do
+                    filename="${!status_map[$status_code]}"
+                    description=$(get_status_description "$status_code")
+                    printf "* ${red}File: ${gray}$filename\t${red}Description: ${gray}$description${normal}\n"
+                done
+                echo "$error_message"
                 printf "${red}After resolving the errors, "
                 read -p "press enter to continue"
                 printf "${normal}\n"
@@ -221,4 +204,21 @@ upgrade()
             fi    
         fi
     fi
+}
+
+get_status_description() {
+    case $1 in
+        # Merge conflict status codes
+        DD) echo "Merge conflict, both deleted";;
+        AU) echo "Merge conflict, added by us";;
+        UD) echo "Merge conflict, deleted by them";;
+        UA) echo "Merge conflict, added by them";;
+        DU) echo "Merge conflict, deleted by us";;
+        AA) echo "Merge conflict, both added";;
+        UU) echo "Merge conflict, both modified";;
+        # Untracked and ignored
+        ??) echo "Untracked";;
+        !!) echo "Ignored";;
+        *)  echo "Changes that need to be commited";;
+    esac
 }

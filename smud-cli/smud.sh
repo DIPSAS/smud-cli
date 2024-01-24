@@ -18,7 +18,7 @@ else
         "--help"        ) help;;
         "version"       ) version;;
         "set-upstream"  ) set_upstream;;
-        "init"          ) init;;
+        "init"          ) init $@;;
         "update-cli"    ) update_cli;;
         "list"          ) list;;
         "upgrade"       ) upgrade;;
