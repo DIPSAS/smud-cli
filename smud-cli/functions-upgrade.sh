@@ -70,6 +70,39 @@ upgrade()
         return
     fi
 
+    if [ "$undo" ]; then
+        if [ "$undo" = "true" ]; then
+            print_error "You must add the commit to the --undo flag. Ex: --undo b3..."
+            return
+        fi
+        local has_undo_commit_command="git log $undo --max-count=1 --no-merges --oneline"
+        run_command --has-commits --command-var=has_undo_commit_command --return-var='has_undo_commit' --debug-title='Check if undo commit exists' || 
+        {
+            print_error "Unabled to find commit '$undo'.\nUndo terminated...\n"
+            return
+        }
+        if [ ! "$has_undo_commit" ]; then
+            print_gray "No commit '$$undo' found. Undo terminated..."   
+            return
+        fi
+        ask yes_no $yellow "Do you really want to reset to [$has_undo_commit]?\nThis is a destructive command. All changes newer than that commit will be lost!"
+        if [ "$yes_no" = "yes" ]; then
+            local flag="--hard"
+            if [ "$soft" ]; then
+                local flag="--soft"
+            fi
+            local git_reset_hard_command="git reset $flag $undo"
+            run_command --reset-to-commit --command-var=git_reset_hard_command --return-var='reset_result' --debug-title="Reset '$default_branch' to commit '$undo'" || 
+            {
+                print_error "Failed to reset default branch '$default_branch' to commit '$undo'\n"
+                return
+            }
+            print_color $green "Default branch '$default_branch' successfully reset to commit '$undo'\n"
+        fi
+
+        return
+    fi
+
     local context="products"
     local upgrade_filter=$filter
     local yes_no="y"
@@ -78,7 +111,7 @@ upgrade()
         if [ ! "$silent" ]; then
             ask yes_no $yellow "Do you want to upgrade the GitOps-model (Yes/No)?"
         fi
-        if [ ! "$yes_no" = "yes" ]; then
+        if [ "$yes_no" = "yes" ]; then
             local upgrade_filter=$devops_model_filter
             local context="GitOps-model files"
             print_gray "Swithced to '$context' context"

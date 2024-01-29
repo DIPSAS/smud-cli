@@ -180,8 +180,14 @@ ask()
     print_color $color $question
     read  answer
     lower answer
-    print_gray "You selected: $answer"
-
+    if [ "$1" = "yes_no" ]; then
+        if [ "$answer" = "yes" ] || [ "$answer" = "y" ] || [ "$answer" = "ja" ] || [ "$answer" = "j" ]; then
+            answer="yes"
+        elif [ "$answer" = "no" ] || [ "$answer" = "n" ] || [ "$answer" = "nei" ]; then
+            answer="no"
+        fi
+    fi
+    print_debug "You selected: $answer"
 }
 
 
@@ -351,9 +357,14 @@ get_arg to_commit '--to-commit,-TC'
 get_arg from_date '--from-date,-FD'
 get_arg to_date '--to-date,-TD'
 get_arg grep '--grep'
+get_arg undo '--undo,--reset'
+get_arg soft '--soft'
 get_arg no_progress '--no-progress' "$silent"
-get_arg skip_files '--skip-files'
-get_arg files '--files'
+get_arg skip_files '--skip-files,--no-files'
+get_arg show_files '--show-files,--files'
+if [ "$skip_files" ]; then
+    show_files="" 
+fi
 
 get_arg development '--development,-D,-DEV'
 get_arg external_test '--external-test,-ET'

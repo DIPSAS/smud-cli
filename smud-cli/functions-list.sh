@@ -151,7 +151,7 @@ product_infos__find_latest_products_with_version()
         product_names=()
     fi
 
-    progressbar__init $line_numbers 50
+    progressbar__init $line_numbers 100
 
     i=0
     for line in "${changed_files[@]}"
@@ -216,9 +216,10 @@ product_infos__find_latest_products_with_version()
 
 product_infos__find_latest_products_with_files()
 {
-    if [ "$skip_files" ]; then
+    if [ ! "$show_files" ]; then
         return
     fi
+
     product_name=""
     if [ "$installed" ]; then
         files_command="git ls-files -- $filter $no_app_files_filter"
@@ -241,7 +242,7 @@ product_infos__find_latest_products_with_files()
     product_yaml_product_names=()
     commit=""
 
-    progressbar__init $line_numbers 50
+    progressbar__init $line_numbers 100
 
     i=0
     start_time=$(date +"%Y-%m-%d %H:%M:%S")
@@ -393,7 +394,7 @@ product_infos__print()
                     current_version="$(get_current_version)"
                 fi    
 
-                if [ ! "$skip_files" ]; then
+                if [ "$show_files" ]; then
                     product_info__get_latest_files product_info files
                 fi
 
@@ -436,7 +437,7 @@ product_infos__print()
 
             if [ ! "$printed_product_header" ]; then
                 files_header=""
-                if [ ! "$skip_files" ]; then
+                if [ "$show_files" ]; then
                     files_header="FILES" 
                 fi
 
