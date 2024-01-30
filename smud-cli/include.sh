@@ -2,14 +2,21 @@
 
 white='\033[1;37m' 
 magenta='\x1b[1;m'
-green='\x1b[22;32m'
+thin_gray='\x1b[22;30m'
 red='\x1b[22;31m'
-gray='\x1b[1;90m'
+green='\x1b[22;32m'
 yellow='\x1b[22;33m'
+blue='\x1b[22;34m'
+magenta_bold='\x1b[22;35m'
+cyan='\x1b[22;36m'
+gray='\x1b[1;90m'
 magenta='\033[38;5;53m'
 bold=$(tput bold)
+
+
 # bold=$white
 normal=$(tput sgr0)
+reset=$normal
 
 declare -A ARGS
 
@@ -153,7 +160,7 @@ print_error()
 print_debug() 
 {
     if [ "$debug" ]; then
-        print_gray "$1"
+        print_color "$thin_gray" "$1"
     fi
 }
 
@@ -177,7 +184,7 @@ ask()
     local question=$3
 
     echo ""
-    print_color $color $question
+    printf "$color$question $normal"
     read  answer
     lower answer
     if [ "$1" = "yes_no" ]; then
@@ -270,7 +277,7 @@ run_command()
     parse_arguments run_command_args "$@"
     get_arg command_from_var '--command-var,--command-from-var,--command-in-var' '' run_command_args
     get_arg debug_title '--debug-title,-dt' '' run_command_args
-    get_arg return_in_var '--return-var,--return-in-var' '' run_command_args
+    get_arg return_in_var '--return,--return-var,--return-in-var' '' run_command_args
     get_arg error_code '--error-code' '' run_command_args
     get_arg skip_error '--skip-error' '' run_command_args
 
@@ -306,7 +313,7 @@ run_command()
         if [ ! "$debug_title" ]; then
             local debug_title="Running command"
         fi
-        print_debug "$debug_title:\n$command"
+        print_debug "$debug_title: [ $normal$command$gray ]"
     fi
     {
         run_command_result="$(sh -c "$command" 2>&1)"
@@ -359,7 +366,8 @@ get_arg to_date '--to-date,-TD'
 get_arg grep '--grep'
 get_arg undo '--undo,--reset'
 get_arg soft '--soft'
-get_arg no_progress '--no-progress' "$silent"
+get_arg no_progress '--no-progress,--skip-progress' "$silent"
+get_arg skip_push '--skip-push,--no-push'
 get_arg skip_files '--skip-files,--no-files'
 get_arg show_files '--show-files,--files'
 if [ "$skip_files" ]; then
@@ -445,9 +453,9 @@ if [ $has_args ] && [ ! $help ] && [ "$is_repo" ]; then
     fi
 
     if [ ! "$from_commit" ] && [ ! "$from_date" ] && [ "$can_do_git" ] ; then
+        from_commit_command="git rev-list $default_branch -1"
         {
-            $(git log > /dev/null 2>&1)
-            from_commit=$(git log $default_branch -1 --pretty=format:"%H")
+            run_command from-commit --command-var from_commit_command --return-var from_commit --skip-error --debug-title "from-commit-command"
         } || {
             printf "${red}No commits found, run ${gray}smud init ${red} to fetch the upstream repository.\n${normal}"
             exit
@@ -456,10 +464,8 @@ if [ $has_args ] && [ ! $help ] && [ "$is_repo" ]; then
 
     if [ ! $to_commit ] && [ ! $is_smud_dev_repo ];then
         if [ "$upstream_url" ]; then
-            to_commit=$(git log upstream/$default_branch -1 --pretty=format:"%H" > /dev/null 2>&1)
-            if [ $? -eq 0 ];then
-                to_commit=$(git log upstream/$default_branch -1 --pretty=format:"%H")
-            fi
+            to_commit_command="git rev-list upstream/$default_branch -1"
+            run_command to-commit --command-var to_commit_command --return-var to_commit --skip-error --debug-title "to-commit-command"
         fi
     fi
     

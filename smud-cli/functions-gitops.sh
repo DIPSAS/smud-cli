@@ -2,7 +2,7 @@
 
 gitops_model__show_changes() 
 {
-    printf "${white}List changes in Gitops model:${normal}\n"
+    print_color "$white" "List changes in Gitops model:\n"
     has_changes_command="git log $git_range --max-count=1 --no-merges $diff_filter --pretty=format:1 -- $devops_model_filter"
     {
         if [ "$git_range" ]; then
@@ -91,12 +91,12 @@ gitops_model__show_changelog_file()
 
     if [ "$changelog_content" ]; then     
         print "$context GitOps-model Changelog:"
-        echo $changelog_content
+        echo -e "$blue$changelog_content$reset"
         IFS=$'\n';read -rd '' -a changelog_commits <<< "$changelog_commits"
 
         for commit in "${changelog_commits[@]}"
         do 
-            git show $commit:CHANGELOG.md --no-color
+            git show $commit:CHANGELOG.md --pretty=format:%Cblue
         done
     else
         print "No $context GitOps-model Changelog found!"

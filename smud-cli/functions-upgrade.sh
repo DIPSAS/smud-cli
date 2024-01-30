@@ -71,44 +71,16 @@ upgrade()
     fi
 
     if [ "$undo" ]; then
-        if [ "$undo" = "true" ]; then
-            print_error "You must add the commit to the --undo flag. Ex: --undo b3..."
-            return
-        fi
-        local has_undo_commit_command="git log $undo --max-count=1 --no-merges --oneline"
-        run_command --has-commits --command-var=has_undo_commit_command --return-var='has_undo_commit' --debug-title='Check if undo commit exists' || 
-        {
-            print_error "Unabled to find commit '$undo'.\nUndo terminated...\n"
-            return
-        }
-        if [ ! "$has_undo_commit" ]; then
-            print_gray "No commit '$$undo' found. Undo terminated..."   
-            return
-        fi
-        ask yes_no $yellow "Do you really want to reset to [$has_undo_commit]?\nThis is a destructive command. All changes newer than that commit will be lost!"
-        if [ "$yes_no" = "yes" ]; then
-            local flag="--hard"
-            if [ "$soft" ]; then
-                local flag="--soft"
-            fi
-            local git_reset_hard_command="git reset $flag $undo"
-            run_command --reset-to-commit --command-var=git_reset_hard_command --return-var='reset_result' --debug-title="Reset '$default_branch' to commit '$undo'" || 
-            {
-                print_error "Failed to reset default branch '$default_branch' to commit '$undo'\n"
-                return
-            }
-            print_color $green "Default branch '$default_branch' successfully reset to commit '$undo'\n"
-        fi
-
+        reset_to_commit
         return
     fi
 
     local context="products"
     local upgrade_filter=$filter
-    local yes_no="y"
+    local yes_no="yes"
     if [ ! "$product" ]; then
-        echo "No Products specified by [--products=, --product=, -P=] or [--all, -A]."
         if [ ! "$silent" ]; then
+            echo "No Products specified by [--products=, --product=, -P=] or [--all, -A]."
             ask yes_no $yellow "Do you want to upgrade the GitOps-model (Yes/No)?"
         fi
         if [ "$yes_no" = "yes" ]; then
@@ -119,21 +91,23 @@ upgrade()
             return
         fi    
     fi
-    has_changes_command="git log $git_range --max-count=1 --no-merges --pretty=format:1 -- $upgrade_filter"
+    printf "${white}Upgrade $context ready for installation:${normal}\n"
+
+    local has_changes_command="git log $git_range --max-count=1 --no-merges --pretty=format:1 -- $upgrade_filter"
     run_command --has-commits --command-var=has_changes_command --return-var='has_commits' --debug-title='Check if any changes' || return
     if [ ! "$has_commits" ]; then
         print_gray "No $context found."   
         return
     fi
-
-
+    list
+    
     yes_no="yes"
-    if [ ! $silent ]; then
-      list
-      ask yes_no $yellow "Do you want to continue upgrading the selected $context (Yes/No)? "
+    if [ ! "$silent" ]; then
+      ask yes_no "$yellow" "Do you want to continue upgrading the selected $context (Yes/No)?"
     fi  
+    local cherrypick_options="--keep-redundant-commits --allow-empty -x"
     local upgrade_error_code=0
-    if [ "$yes_no" = "yes" ] || [ "$yes_no" = "y" ]; then
+    if [ "$yes_no" = "yes" ]; then
         commits_command="git rev-list $from_commit^..$to_commit $date_range $git_grep --reverse --no-merges $diff_filter -- $upgrade_filter"
         run_command --commits --command-var=commits_command --return-var=rev_list --skip-error=true --error-code=upgrade_error_code --debug-title='Find commits to upgrade'
         
@@ -146,19 +120,32 @@ upgrade()
             print_gray "No $context found."   
             return
         fi
+
         IFS=$'\n';read -rd '' -a rev_list <<< "$rev_list"
+
+        correlate_against_already_cherripicked rev_list already_cherry_picked_commits
+
+        if [ ${#rev_list[@]} -eq 0 ]; then
+            if [ $already_cherry_picked_commits -gt 0 ];then
+                print_gray "No $context found. All commits are already cherry-picked!"           
+            else
+                print_gray "No $context found."           
+            fi
+            return
+        fi
+
         commits="${rev_list[@]}"
         print_gray "Running: git cherry-pick [commits]...\n"   
         print_debug "$commits"
         # If there are any current unapplied changes, cherry pick will fail. Catch this.
-        cherrypick_commits_command="git cherry-pick $commits"
-        run_command cherry-pick --command-var=cherrypick_commits_command --return-var=log --debug-title='Start cherry-pick' || error_message=$log
+        cherrypick_commits_command="git cherry-pick $commits $cherrypick_options"
+        run_command cherry-pick --command-var=cherrypick_commits_command --return-var=log --skip-error --debug-title='Start cherry-pick' || error_message=$log
 
         # Check if cherry-pick in progress
         error_index="$(echo "$error_message" | grep "cherry-pick is already in progress" -c)"
         if [ $error_index -gt 0 ]; then
             error_message=""
-            cherrypick_commits_command="git cherry-pick --continue"
+            cherrypick_commits_command="git cherry-pick --continue $cherrypick_options"
             run_command cherry-pick --command-var=cherrypick_commits_command --return-var=log --debug-title='Continue cherry-pick' || error_message=$log
         fi
 
@@ -166,7 +153,7 @@ upgrade()
         error_index="$(echo "$error_message" | grep "The previous cherry-pick is now empty, possibly due to conflict resolution" -c)"
         if [ $error_index -gt 0 ]; then
             error_message=""
-            cherrypick_commits_command="git cherry-pick --skip"
+            cherrypick_commits_command="git cherry-pick --skip $cherrypick_options"
             run_command cherry-pick --command-var=cherrypick_commits_command --return-var=log --debug-title='Skip cherry-pick' || error_message=$log
         fi
 
@@ -212,14 +199,42 @@ upgrade()
                 done
                
                 printf "${red}After resolving the errors, "
-                read -p "press enter to continue"
+                read -p "press [enter] to continue. To abort press [A][enter]. To skip commit press [S][enter]: " continue_or_abort
+                lower continue_or_abort
                 printf "${normal}\n"
+                if [ "$continue_or_abort" = "a" ]; then
+                    log=$(git cherry-pick --abort > /dev/null 2>&1 )
+                    exit
+                fi
 
-                log=$(git cherry-pick --continue 2>&1)
-                
-                if [ $? -eq 0 ]; then
+                error_code=0
+                error_message=""
+                log=""
+                errors_resolved="false"
+
+                if [ "$continue_or_abort" = "s" ]; then
+                    log=$(git cherry-pick --skip $cherrypick_options > /dev/null 2>&1 )
                     errors_resolved="true"
-                    break
+                else    
+                    cherrypick_commits_command="git cherry-pick --continue $cherrypick_options"
+                    run_command cherry-pick --command-var=cherrypick_commits_command --return-var=log --error-code error_code --debug-title='Continue cherry-pick' || error_message=$log
+                    if [ $error_code -eq 0 ]; then
+                        errors_resolved="true"
+                        break
+                    else
+
+                        if [ $error_code -eq 128 ]; then
+                            error_index="$(echo "$error_message" | grep "no cherry-pick or revert in progress" -c)"
+                            if [ $error_index -gt 0 ]; then
+                                error_code=0
+                                error_message=""
+                                errors_resolved="true"
+                            fi
+                        fi
+                        if [ $error_code -gt 0 ]; then
+                            print_error "Cherry-pick continue failed: errorCode: $error_code, error: '$error_message'"
+                        fi
+                    fi
                 fi
 
                 # Clear the status_map
@@ -250,7 +265,7 @@ upgrade()
                         
                     fi    
                 fi
-                if [ $remote ]; then
+                if [ $remote ] && [ ! "$skip_push" ]; then
                     echo "Pushing all applied changes to remote branch '$remote' "
                     echo "Running: git push origin $remote"
                     git push origin $remote
@@ -297,4 +312,81 @@ get_status_description() {
         !!) echo "Ignored";;
         *)  echo "Changes that need to be commited";;
     esac
+}
+
+reset_to_commit()
+{
+    if [ "$undo" = "true" ]; then
+        print_error "You must add the commit to the --undo flag. Ex: --undo b3..."
+        return
+    fi
+    local has_undo_commit_command="git log $undo --max-count=1 --no-merges --oneline"
+    run_command --has-commits --command-var=has_undo_commit_command --return-var='has_undo_commit' --debug-title='Check if undo commit exists' || 
+    {
+        print_error "Unabled to find commit '$undo'.\nUndo terminated...\n"
+        return
+    }
+    if [ ! "$has_undo_commit" ]; then
+        print_gray "No commit '$$undo' found. Undo terminated..."   
+        return
+    fi
+    yes_no="yes"
+    if [ ! "$silent" ]; then
+        ask yes_no $yellow "Do you really want to reset to [$has_undo_commit]?\nThis is a destructive command. All changes newer than that commit will be lost!"
+    fi
+    if [ "$yes_no" = "yes" ]; then
+        local flag="--hard"
+        if [ "$soft" ]; then
+            local flag="--soft"
+        fi
+        local git_reset_hard_command="git reset $flag $undo"
+        run_command --reset-to-commit --command-var=git_reset_hard_command --return-var='reset_result' --debug-title="Reset '$default_branch' to commit '$undo'" || 
+        {
+            print_error "Failed to reset default branch '$default_branch' to commit '$undo'\n"
+            return
+        }
+        print_color $green "Default branch '$default_branch' successfully reset to commit '$undo'\n"
+    fi
+}
+
+correlate_against_already_cherripicked()
+{
+    local -n revision_list=$1
+    local -n already_cherry_picked_commits_counter=$2
+    already_cherry_picked_commits_counter=0
+    rev_list_checked=()
+    local has_cherrypicked_commits=""
+    local cherrypicked_changes_command="git log HEAD --max-count=1 --no-merges --pretty=format:1  --grep cherry.picked.from.commit -- $upgrade_filter"
+    run_command --has-commits --command-var=cherrypicked_changes_command --return-var='has_cherrypicked_commits' --skip-error --debug-title='Check fo already cherry-picked changes' || return
+    if [ "$has_cherrypicked_commits" ]; then
+
+        print_gray "Compute revision corrolated agains already cherry-picked commits..."
+        local cherrypicked_commits=""
+        local cherrypicked_changes_command="git log HEAD --no-merges --grep cherry.picked.from.commit --pretty=format:%b -- $upgrade_filter"
+        run_command --has-commits --command-var=cherrypicked_changes_command --return-var='cherrypicked_commits' --skip-error --debug-title='Collect already cherry-picked changes' || return
+        local cherrypicked_commits=$(echo "$cherrypicked_commits"| sed -e 's/(cherry picked from commit //g' -e 's/)//g' -e '')
+        if [ "$debug" ]; then
+            number_of_cherry_picked_commits=$(echo "$cherrypicked_commits" | wc -w)
+
+            print_gray "Number of already cherry-picked commits found: $normal$number_of_cherry_picked_commits"
+            print_gray "Number of original revisions from upstream/source: $normal${#revision_list[@]}"
+        fi
+        for rev in "${revision_list[@]}"
+        do
+            local c=$(echo "$cherrypicked_commits" | grep $rev -c)
+            if [ "$c" = "0" ]; then
+            # if [[ ! " ${cherrypicked_commits_arr[@]} " =~ " $rev " ]]; then
+                rev_list_checked+=("$rev")
+                print_verbose "Added commit corrolated agains already cherry-picked commits: $rev ${#rev_list_checked[@]} -- $c"
+            else
+                print_verbose "Ignored commit corrolated agains already cherry-picked commits: $rev -- $c"
+                already_cherry_picked_commits=$((already_cherry_picked_commits+1))
+            fi
+        done
+        revision_list=("${rev_list_checked[@]}")
+        if [ ${#revision_list[@]} -gt 0 ]; then
+            print_gray "Number of revisions corrolated agains already cherry-picked commits: $normal${#revision_list[@]}"
+        fi
+    fi
+
 }
