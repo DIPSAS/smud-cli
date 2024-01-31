@@ -343,10 +343,15 @@ product_infos__print()
     # echo "HIT ${product_stages[@]}"
     for product_stage in "${product_stages[@]}"
     do
+        if [ "$product_stage" = "development" ]; then has_development="true"; fi
+        if [ "$product_stage" = "internal-test" ]; then has_internal_test="true"; fi
+        if [ "$product_stage" = "external-test" ]; then has_external_test="true"; fi
+        if [ "$product_stage" = "production" ]; then has_production="true"; fi
+        
         if [ "$prev" = "external-test" ] && [ "$product_stage" = "internal-test" ]; then
             ordered_product_stages[$iPrev]="$product_stage"
             ordered_product_stages[$i]="$prev"
-            echo "set [$iPrev]=$product_stage and [$i]=$prev -- ${ordered_product_stages[@]}"
+            # echo "set [$iPrev]=$product_stage and [$i]=$prev -- ${ordered_product_stages[@]}"
         else
             ordered_product_stages[$i]=$product_stage
         fi
@@ -358,6 +363,16 @@ product_infos__print()
     for product_stage in "${ordered_product_stages[@]}"
     do
         # echo "hit:$product_stage"
+        if [ "$git_range" ]; then
+            show_latest_version_in_list="true"
+            show_tags_in_list="true"
+        fi
+        if [ "$is_smud_dev_repo" ]; then
+            show_latest_version_in_list=""
+            show_tags_in_list=""
+        fi
+        latest_version_header_text="LATEST VER."
+
         printed_stage_label=""
         printed_product_header=""
         iMajor=0
@@ -374,7 +389,7 @@ product_infos__print()
             product_latest_version=""
             product_latest_commit=""
             current_version=""
-            latest_version=""
+            local latest_version=""
             commit=""    
             files=""
             product_info=${product_infos[${stage_product_name}]}
@@ -384,15 +399,42 @@ product_infos__print()
             fi
             if [ "$product_info" ]; then
                 # echo "Found : $stage_product_name"
-                product_info__get_latest_version product_info latest_version
-                
-                if [ ! "$latest_version" ] && [ "$git_range" ]; then
-                    get_latest_version latest_version
-                fi    
                 product_info__get_current_version product_info current_version
                 if [ ! "$current_version" ]; then
                     current_version="$(get_current_version)"
                 fi    
+
+                if [ "$show_latest_version_in_list" = "true" ]; then
+                    product_info__get_latest_version product_info latest_version
+                    
+                    if [ ! "$latest_version" ] && [ "$git_range" ]; then
+                        get_latest_version latest_version
+                    fi    
+                else
+                    latest_version=""
+                    if [ "$product_stage" = "development" ] && [ "$has_internal_test" ]; then
+                        latest_version="$(get_next_stage_version "$product_name/internal-test")"
+                        latest_version_header_text="INT-TEST VER."
+                        show_latest_version_in_list="show"
+                        show_tags_in_list="show"
+                    fi
+                    if ([ "$product_stage" = "internal-test" ] || [ "$product_stage" = "production" ]) && [ "$has_external_test" ]; then
+                        latest_version="$(get_next_stage_version "$product_name/external-test")"
+                        show_latest_version_in_list="show"
+                        show_tags_in_list="show"
+                        latest_version_header_text="EXT-TEST VER."
+                        if [ "$product_stage" = "production" ]; then
+                            show_tags_in_list="reverse"
+                        fi
+
+                    fi
+                    if [ "$product_stage" = "external-test" ] && [ "$has_production" ]; then
+                        latest_version="$(get_next_stage_version "$product_name/production")"
+                        show_latest_version_in_list="show"
+                        show_tags_in_list="show"
+                        latest_version_header_text="PROD VER."
+                    fi
+                fi
 
                 if [ "$show_files" ]; then
                     product_info__get_latest_files product_info files
@@ -405,30 +447,44 @@ product_infos__print()
 
                 # echo "commit: [$commit]"
                 # echo "{ stage: '$product_stage',  product_name: '$product_name', latest_version: '$latest_version', commit: '$commit', product_info: '${product_infos[${stage_product_name}]}' }"
-                
-                tags="$(get_tags "'$current_version'" "'$latest_version'")"
+                if [ "$show_tags_in_list" ]; then
+                    if [ "$show_tags_in_list" = "reverse" ]; then
+                        tags="$(get_tags "'$latest_version'" "'$current_version'")"
+                    else
+                        tags="$(get_tags "'$current_version'" "'$latest_version'")"
+                    fi
 
-                if [ "$major" ] && [ ! "$tags" = "MAJOR" ];then
-                    continue
-                fi
+                    if [ "$major" ] && [ ! "$tags" = "MAJOR" ];then
+                        continue
+                    fi
 
-                if [ "$minor" ] && [ ! "$tags" = "MINOR" ];then
-                    continue
-                fi
+                    if [ "$minor" ] && [ ! "$tags" = "MINOR" ];then
+                        continue
+                    fi
 
-                if [ "$patch" ] && [ ! "$tags" = "patch" ];then
-                    continue
-                fi
+                    if [ "$patch" ] && [ ! "$tags" = "patch" ];then
+                        continue
+                    fi
 
-                if [ "$same" ] && [ ! "$tags" = "" ] && [ ! "$current_version" = "$latest_version" ]; then
-                    continue
+                    if [ "$changed" ] && [ ! "$tags" ];then
+                        continue
+                    fi
+
+                    if [ "$same" ] && [ ! "$tags" = "" ] && [ ! "$current_version" = "$latest_version" ]; then
+                        continue
+                    fi
+                    if [ "$tags" = "MAJOR" ];then iMajor=$((iMajor+1)); fi
+                    if [ "$tags" = "MINOR" ];then iMinor=$((iMinor+1)); fi
+                    if [ "$tags" = "patch" ];then iPatch=$((iPatch+1)); fi
+                    if [ "$tags" = "" ] && [ "$current_version" = "$latest_version" ];then iSame=$((iSame+1)); fi
+                    if [ ! "$current_version" ];then iNew=$((iNew+1)); fi
+                else
+                    if [ "$changed" ];then
+                        continue
+                    fi
                 fi
                 iProducts=$((iProducts+1))
-                if [ "$tags" = "MAJOR" ];then iMajor=$((iMajor+1)); fi
-                if [ "$tags" = "MINOR" ];then iMinor=$((iMinor+1)); fi
-                if [ "$tags" = "patch" ];then iPatch=$((iPatch+1)); fi
-                if [ "$tags" = "" ] && [ "$current_version" = "$latest_version" ];then iSame=$((iSame+1)); fi
-                if [ ! "$current_version" ];then iNew=$((iNew+1)); fi
+
             fi
             if [ ! "$printed_stage_label" ]; then
                 printf "\n$product_stage:\n"
@@ -442,11 +498,16 @@ product_infos__print()
                 fi
 
                 latest_version_header=""
-                if [ "$git_range" ]; then
-                    latest_version_header="`printf %-${n_latest_ver_len}s "LATEST VER."`"
+                if [ "$show_latest_version_in_list" ]; then
+                    latest_version_header="`printf %-${n_latest_ver_len}s "$latest_version_header_text"`"
                 fi
 
-                printf "`printf %-${n_products_len}s "PRODUCTS"` `printf %-${n_tags_len}s "TAGS"` `printf %-${n_current_ver_len}s "CURRENT VER."` $latest_version_header $files_header\n"
+                tags_header=""
+                if [ "$show_tags_in_list" ]; then
+                    tags_header="`printf %-${n_tags_len}s "TAGS"`"
+                fi
+
+                printf "`printf %-${n_products_len}s "PRODUCTS"` $tags_header `printf %-${n_current_ver_len}s "CURRENT VER."` $latest_version_header $files_header\n"
                 printed_product_header="true"
             fi
 
@@ -459,12 +520,17 @@ product_infos__print()
 
             print_product_name=`printf %-${n_products_len}s "$product_name"`
             print_current_version=`printf %-${n_current_ver_len}s "$current_version"`
-            print_tags=`printf %-${n_tags_len}s "$tags"`
 
             print_latest_version=""; 
             if [ "$latest_version_header" ]; then
                 print_latest_version=`printf %-${n_latest_ver_len}s "$latest_version"`
             fi
+
+            print_tags=""
+            if [ "$tags_header" ]; then
+                print_tags=`printf %-${n_tags_len}s "$tags"`
+            fi
+
 
             print_files=""; 
             if [ "$files_header" ]; then
@@ -512,7 +578,18 @@ product_infos__print()
     fi
     echo ""
 }
+get_next_stage_version()
+{
+    local next_stage_product_name=$1
 
+    local next_product_info=${product_infos[${next_stage_product_name}]}
+    local next_latest_version=""
+    if [ "$next_product_info" ]; then
+        local next_latest_version="$(get_current_version next_product_info next_stage_product_name)"
+    fi    
+    echo "$next_latest_version"
+
+}
 
 get_tags() 
 {
@@ -578,16 +655,29 @@ set_product_info()
 
 get_current_version()
 {
-    if [ ! "$current_version" ] && [ "$stage_product_name" ]; then
-        get_product_info product_info
-        if [ "$product_info" ]; then
-            product_info__get_current_version product_info current_version
+    product_info_var=$1
+    if [ "$1" ]; then
+        local -n product_info_var=$1
+        local current_version=""
+    else
+        local product_info_var="$product_info"
+    fi
+    if [ "$2" ]; then
+        local -n stage_product_name_var=$2
+    else
+        local stage_product_name_var="$stage_product_name"
+    fi
+
+    if [ ! "$current_version" ] && [ "$stage_product_name_var" ]; then
+        get_product_info product_info_var
+        if [ "$product_info_var" ]; then
+            product_info__get_current_version product_info_var current_version
         fi
         if [ ! "$current_version" ] ; then
-            app_file="products/$stage_product_name/app.yaml"
+            app_file="products/$stage_product_name_var/app.yaml"
             if [ -f $app_file ]; then
                 current_version=`cat $app_file | grep chartVersion: | cut -d ':' -f 2 |xargs|sed -e 's/"//g'|xargs|tr -d ['\n','\r'] |cut -d '#' -f 1 |xargs`
-                if [ "$current_version" ]; then
+                if [ "$current_version" ] && [ ! "$1$2" ]; then
                     set_product_info
                 fi
             fi
@@ -598,7 +688,7 @@ get_current_version()
 
 get_latest_version()
 {
-    if [ ! "$product_latest_version" ] && [ "$stage_product_name" ]; then
+    if [ ! "$product_latest_version" ] && [ "$stage_product_name" ] && [ ! "$is_smud_dev_repo" ]; then
         # echo "stage_product_name: $stage_product_name , file: $file"
         if [ "$1" ]; then
             local -n product_latest_version_local=$1

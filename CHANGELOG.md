@@ -1,6 +1,17 @@
+## Version 1.0.10
+- Improved list for SMUD-GitOps repository
+
+## Version 1.0.9
+- Improved upgrade. Already cherry-picket commits will be skipped.
+
+## Version 1.0.8
+- Implemented gitops-model upgrade
+
+## Version 1.0.7
+- Implemented gitops-model upgrade
 
 ## Version 1.0.6
-- Implementet gitops-model list
+- Implemented gitops-model list
 
 ## Version 1.0.5
 - Changed list function from commit-focus to version-focus

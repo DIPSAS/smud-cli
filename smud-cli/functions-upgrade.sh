@@ -99,7 +99,35 @@ upgrade()
         print_gray "No $context found."   
         return
     fi
-    list
+    commits_command="git rev-list $from_commit^..$to_commit $date_range $git_grep --reverse --no-merges $diff_filter -- $upgrade_filter"
+    run_command --commits --command-var=commits_command --return-var=rev_list --skip-error=true --error-code=upgrade_error_code --debug-title='Find commits to upgrade'
+    
+    if [ $upgrade_error_code -eq 128 ]; then
+        commits_command="git rev-list $from_commit..$to_commit $date_range $git_grep --reverse --no-merges $diff_filter -- $upgrade_filter"
+        run_command --commits --command-var=commits_command --return-var=rev_list --debug-title='Find commits to upgrade' || return
+    fi
+
+    if [ ! "$rev_list" ]; then
+        print_gray "No $context found."   
+        return
+    fi
+
+    IFS=$'\n';read -rd '' -a rev_list <<< "$rev_list"
+
+    correlate_against_already_cherripicked rev_list already_cherry_picked_commits
+
+    if [ ${#rev_list[@]} -eq 0 ]; then
+        if [ $already_cherry_picked_commits -gt 0 ];then
+            print_gray "All changes already cherry-picked!"           
+        else
+            print_gray "No $context found."           
+        fi
+        return
+    fi
+
+    # git_range="${rev_list[@]}"
+
+    list 
     
     yes_no="yes"
     if [ ! "$silent" ]; then
@@ -108,32 +136,6 @@ upgrade()
     local cherrypick_options="--keep-redundant-commits --allow-empty -x"
     local upgrade_error_code=0
     if [ "$yes_no" = "yes" ]; then
-        commits_command="git rev-list $from_commit^..$to_commit $date_range $git_grep --reverse --no-merges $diff_filter -- $upgrade_filter"
-        run_command --commits --command-var=commits_command --return-var=rev_list --skip-error=true --error-code=upgrade_error_code --debug-title='Find commits to upgrade'
-        
-        if [ $upgrade_error_code -eq 128 ]; then
-            commits_command="git rev-list $from_commit..$to_commit $date_range $git_grep --reverse --no-merges $diff_filter -- $upgrade_filter"
-            run_command --commits --command-var=commits_command --return-var=rev_list --debug-title='Find commits to upgrade' || return
-        fi
-
-        if [ ! "$rev_list" ]; then
-            print_gray "No $context found."   
-            return
-        fi
-
-        IFS=$'\n';read -rd '' -a rev_list <<< "$rev_list"
-
-        correlate_against_already_cherripicked rev_list already_cherry_picked_commits
-
-        if [ ${#rev_list[@]} -eq 0 ]; then
-            if [ $already_cherry_picked_commits -gt 0 ];then
-                print_gray "No $context found. All commits are already cherry-picked!"           
-            else
-                print_gray "No $context found."           
-            fi
-            return
-        fi
-
         commits="${rev_list[@]}"
         print_gray "Running: git cherry-pick [commits]...\n"   
         print_debug "$commits"
@@ -360,7 +362,7 @@ correlate_against_already_cherripicked()
     run_command --has-commits --command-var=cherrypicked_changes_command --return-var='has_cherrypicked_commits' --skip-error --debug-title='Check fo already cherry-picked changes' || return
     if [ "$has_cherrypicked_commits" ]; then
 
-        print_gray "Compute revision corrolated agains already cherry-picked commits..."
+        print_debug "Compute revision corrolated agains already cherry-picked commits..."
         local cherrypicked_commits=""
         local cherrypicked_changes_command="git log HEAD --no-merges --grep cherry.picked.from.commit --pretty=format:%b -- $upgrade_filter"
         run_command --has-commits --command-var=cherrypicked_changes_command --return-var='cherrypicked_commits' --skip-error --debug-title='Collect already cherry-picked changes' || return
