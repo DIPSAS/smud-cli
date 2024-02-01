@@ -15,7 +15,7 @@ Requirements:
 1. Open powershell or bash console
 2. Run the command:
    ```shell
-   bash -c "curl --ssl-no-revoke -H Accept:application/vnd.github.v3.raw https://api.github.com/repos/DIPSAS/smud-cli/contents/smud-cli/download-and-install-cli.sh --no-progress-meter | bash"
+   bash -c "curl --ssl-no-revoke -H Accept:application/vnd.github.v3.raw https://api.github.com/repos/DIPSAS/smud-cli/contents/smud-cli/download-and-install-cli.sh | bash"
    ``` 
 
 

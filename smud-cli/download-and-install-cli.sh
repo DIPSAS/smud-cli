@@ -22,7 +22,9 @@ AUTH_USER=""
 
 mkdir $download_folder 
 cd $download_folder
-response="$(curl --ssl-no-revoke --no-progress-meter -o $download_json_file $AUTH_TOKEN "https://api.github.com/repos/DIPSAS/smud-cli/contents/$folder" 2>&1)" || {
+
+printf "${gray}Download '$folder' folder spec: ${normal}\n"  
+response="$(curl --ssl-no-revoke -o $download_json_file $AUTH_TOKEN "https://api.github.com/repos/DIPSAS/smud-cli/contents/$folder" 2>&1)" || {
    echo "Failed to download '$download_json_file' file"    
    if [ "$response" ]; then
       echo "Error: "   
@@ -62,7 +64,7 @@ for url in "${download_urls[@]}"; do
    downloaded_file=$(basename $url)
    if [ "$file" ]; then
       printf "${gray}Download '$file' file: ${normal}\n"   
-      echo "Download:$url => $file"
+      # echo "Download:$url => $file"
       curl --ssl-no-revoke -o $file $url # > /dev/null 2>&1
       #  echo "Downloaded"
    else
