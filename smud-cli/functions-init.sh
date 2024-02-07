@@ -106,12 +106,11 @@ init()
         return
     fi
 
-    upstream_url="${2:-}"
-    
+    upstream_url=${1:-$first_param}
     remote_origin=$(git config --get remote.origin.url)
     remote_upstream=$(git config --get remote.upstream.url)
 
-    if [ ! "$remote_upstream" ]; then
+    if [ ! "$remote_upstream" ] || [ "$upstream_url" ]; then
         if [ ! "$upstream_url" ]; then
             upstream_url="$default_upstream"
         fi
