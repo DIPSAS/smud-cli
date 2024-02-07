@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
 
-default_upstream="https://github.com/DIPSAS/DIPS-GitOps-Template.git"
-
-
 show_valid_commands() 
 {
     echo "Commands:"

@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+default_upstream="https://github.com/DIPSAS/DIPS-GitOps-Template.git"
+
 # Rewrite this to not use arg array
 set_upstream()
 {
@@ -108,7 +110,14 @@ init()
     
     remote_origin=$(git config --get remote.origin.url)
     remote_upstream=$(git config --get remote.upstream.url)
-    
+
+    if [ ! "$remote_upstream" ]; then
+        if [ ! "$upstream_url" ]; then
+            upstream_url="$default_upstream"
+        fi
+        set_upstream "$upstream_url"
+    fi
+
     if [ ! "$is_repo" ]; then
         local yes_no="y"
         ask yes_no $yellow "The current directory does not seem to be a git repository\nWould you like to initialize the repository and merge the remote upstream? (yes/no)"
@@ -117,9 +126,6 @@ init()
             exit 0
         fi
         init_repo
-        if [ ! -n "$remote_upstream" ]; then
-            set_upstream "$upstream_url"
-        fi
         fetch_upstream
         merge_upstream
     else
