@@ -119,7 +119,7 @@ list()
 product_infos__find_latest_products_with_version()
 {
     option="$1"
-
+    source=""
     product_name=""
     pos_colon=2
     progress_title="latest products with version"
@@ -127,13 +127,17 @@ product_infos__find_latest_products_with_version()
         progress_title="installed products with version"
         commit_filter=""
         pos_colon=1
+        app_files_command="git --no-pager grep 'chartVersion: $version' $commit_filter -- :$app_files_filter|uniq"
     else
-        commit_filter="$to_commit"
+        source="git"
+        commit_filter="$git_range"
         if [ ! "$commit_filter" ]; then
             return
         fi
+        pos_colon=0
+        app_files_command="git --no-pager diff $commit_filter --no-merges --pretty=format:'' -- :$filter| grep '+++ .*app.yaml\|+++ .*values.yaml\|+  chartVersion'| sed -e 's/+//g' -e 's/b\///g'"
     fi
-    app_files_command="git --no-pager grep 'chartVersion: $version' $commit_filter -- :$app_files_filter|uniq"
+    
     {
         run_command --files --command-var=app_files_command --return-var=changed_files --debug-title='Find all changed app files'
     } || {
@@ -151,8 +155,8 @@ product_infos__find_latest_products_with_version()
         product_names=()
     fi
 
-    app_files_command="git --no-pager grep -B 0 -A 500 'dependencies:' $commit_filter -- :$app_files_filter|sed -e 's/.*:dependencies://g'|uniq"
-    run_command --files --command-var=app_files_command --return-var=dependencies_files --skip-error --debug-title='Find all dependencies app files'
+    app_dependecy_command="git --no-pager grep -B 0 -A 500 'dependencies:' $commit_filter -- :$app_files_filter|sed -e 's/.*:dependencies://g'|uniq"
+    run_command --files --command-var=app_dependecy_command --return-var=dependencies_files --skip-error --debug-title='Find all dependencies app files'
     if [ "$dependencies_files" ]; then
         IFS=$'\n';read -rd '' -a dependencies_files <<< "$dependencies_files"
     fi
@@ -171,22 +175,39 @@ product_infos__find_latest_products_with_version()
     progressbar__init $line_numbers 100
     product_info_dependencies=""
     i=0
-    for line in "${changed_files[@]}"
+    for l in "${changed_files[@]}"
     do
-        i=$((i+1))
-        # echo "$i: line=$line"
-
+        cChartVersion=0
+        line="$(echo "$l"|sed -e 's/[\r\n]//g'|xargs)"
+        c=$(expr match $line '.*/app\.yaml') 
+        c2=$(expr match $line '.*/values\.yaml') 
+        if [ $c -gt 0 ] || [ $c2 -gt 0 ]; then
+            i=$((i+1))
+            if [ $pos_colon -gt 0 ]; then
+                file="$(echo "$line" | cut -d ':' -f $pos_colon)"
+            else
+                file="$(echo "$line")"
+            fi
+            product_name="$(echo "$file"  | cut -d '/' -f 2|xargs)"
+            product_stage="$(echo "$file" | cut -d '/' -f 3|xargs)"
+            stage_product_name="$product_name/$product_stage"
+        else
+            cChartVersion=$(echo "$line" | grep ':' -c)
+            file="products/$stage_product_name/app.yaml"
+        fi
+        
+        # echo "$i line=$line, file=$file -- product_name=$product_name, product_stage=$product_stage, stage_product_name=$stage_product_name"
         progressbar__increase $i "${#product_infos[@]} $progress_title found"
-
-        file="$(echo "$line" | cut -d ':' -f $pos_colon)"
-        product_name="$(echo "$file"  | cut -d '/' -f 2)"
-        product_stage="$(echo "$file" | cut -d '/' -f 3)"
-        stage_product_name="$product_name/$product_stage"
-        found_version="$(echo "$line" | cut -d ':' -f $((pos_colon+2))|xargs|sed -e 's/"//g'|xargs|tr -d ['\n','\r'] |cut -d '#' -f 1 |xargs)"
+        found_version=""
+        if [ $cChartVersion -gt 0 ]; then
+            found_version="$(echo "$line" | cut -d ':' -f $((pos_colon+2))|xargs|sed -e 's/"//g'|xargs|tr -d ['\n','\r'] |cut -d '#' -f 1 |xargs)"
+            # echo "found_version: $found_version -- $line"
+        fi
         if [[ ! " ${product_names[@]} " =~ " $product_name " ]]; then
             if [ "$option" = "skip-add-new-product" ]; then
                 continue
             fi
+            # echo "[$product_name]"
             product_names+=("$product_name")
         fi
 
@@ -223,8 +244,13 @@ product_infos__find_latest_products_with_version()
         # echo "*** option: $option :: $i: file=$file, stage_product_name=$stage_product_name, found_version=$found_version,  product_latest_version=$product_latest_version, current_version=$current_version, add_product: $add_product"
 
         append_product "$file" "A" "$add_product"
+        stage_product_name_tmp="$stage_product_name"
         complete_version
+        stage_product_name="$stage_product_name_tmp"
     done
+    product_name=""
+    stage_product_name_tmp=""
+
     if [ "$dependencies_files" ]; then
         product_info_dependencies=""    
         for line in "${dependencies_files[@]}"
@@ -240,12 +266,15 @@ product_infos__find_latest_products_with_version()
                     product_name="$(echo "$file"  | cut -d '/' -f 2)"
                     product_stage="$(echo "$file" | cut -d '/' -f 3)"
                     local stage_product_name="$product_name/$product_stage"
-                    # echo "stage_product_name: $stage_product_name, dependency: $dependency"
-                    append_product_depenencies "$dependency" "$stage_product_name"
-                    # echo "depedencies_return: $depedencies_return"
                     product_info=${product_infos[$stage_product_name]}
-                    complete_version
-                    # echo "xxx: ${product_infos[$stage_product_name]}"
+                    if [ "$product_info" ];then
+                        # echo "stage_product_name: $stage_product_name, dependency: $dependency"
+                        append_product_depenencies "$dependency" "$stage_product_name"
+                        # echo "depedencies_return: $depedencies_return"
+                        product_info=${product_infos[$stage_product_name]}
+                        complete_version
+                        # echo "xxx: ${product_infos[$stage_product_name]}"
+                    fi
                 fi
             fi
         done
@@ -262,7 +291,7 @@ product_infos__find_latest_products_with_files()
         return
     fi
 
-    product_name=""
+    product_name_files=""
     if [ "$installed" ]; then
         files_command="git ls-files -- $filter $no_app_files_filter"
     else
@@ -297,7 +326,7 @@ product_infos__find_latest_products_with_files()
 
         product_yaml=$(echo "$file" | grep product.yaml -c)
 
-        product_name="$(echo "$file" | cut -d '/' -f 2)"
+        product_name_files="$(echo "$file" | cut -d '/' -f 2)"
         if [ $product_yaml -eq 0 ]; then
             # Add to $product_stages if new stage
             product_stage="$(echo "$file" | cut -d '/' -f 3)"
@@ -324,11 +353,11 @@ product_infos__find_latest_products_with_files()
         progressbar__increase $i "${#product_infos[@]} products updated with files"
     done
 
-    for product_name in "${product_yaml_product_names[@]}"
+    for product_name_files in "${product_yaml_product_names[@]}"
     do
         for product_stage in "${product_stages[@]}"
         do
-            stage_product_name="$product_name/$product_stage"
+            stage_product_name="$product_name_files/$product_stage"
             product_info=${product_infos[${stage_product_name}]}
             if [ ! "$product_info" ]; then
                 # echo "** find-files(product.yaml) : file=$file, stage_product_name=$stage_product_name, NO PRODUCT_INFO"     
@@ -336,11 +365,11 @@ product_infos__find_latest_products_with_files()
             fi
 
             file="products/$stage_product_name/product.yaml"
-            saved_product_name=$product_name
+            saved_product_name=$product_name_files
             append_product "$file" "A" "false" is_file_appended_stage
             # echo "** find-files(product.yaml) : file=$file, stage_product_name=$stage_product_name, is_file_appended: $is_file_appended_stage"
             complete_version
-            product_name=$saved_product_name
+            product_name_files=$saved_product_name
         done
     done
 
@@ -427,9 +456,13 @@ product_infos__print()
         iProducts=0
         for product_name in "${product_names[@]}"
         do
-            stage_product_name="$product_name/$product_stage"
+            if [ ! "$product_name" ]; then
+                continue
+            fi
+            product_name_list="`echo "$product_name"| sed -e 's/[\r\n]//g'`"
+            # product_name_list="$product_name_list"
+            stage_product_name="$product_name_list/$product_stage"
             file=""
-            # echo "hit:$stage_product_name"
             product_latest_version=""
             product_latest_commit=""
             current_version=""
@@ -447,6 +480,7 @@ product_infos__print()
                 product_info__get_current_version product_info current_version
                 if [ ! "$current_version" ]; then
                     get_current_version product_info stage_product_name current_version
+                    # a=1
                 fi    
 
                 if [ "$show_latest_version_in_list" = "true" ]; then
@@ -455,15 +489,16 @@ product_infos__print()
                     if [ ! "$latest_version" ] && [ "$git_range" ]; then
                         get_latest_version latest_version
                     fi    
+    
                 else
                     latest_version=""
                     if [ "$product_stage" = "development" ] && [ "$has_internal_test" ]; then
-                        get_next_stage_version "$product_name/internal-test" latest_version
+                        get_next_stage_version "$product_name_list/internal-test" latest_version
                         latest_version_header_text="INT-TEST VER."
                         show_latest_version_in_list="show"
                         show_tags_in_list="show"
                     elif ([ "$product_stage" = "internal-test" ] || [ "$product_stage" = "production" ]) && [ "$has_external_test" ]; then
-                        get_next_stage_version "$product_name/external-test" latest_version
+                        get_next_stage_version "$product_name_list/external-test" latest_version
                         show_latest_version_in_list="show"
                         show_tags_in_list="show"
                         latest_version_header_text="EXT-TEST VER."
@@ -472,7 +507,7 @@ product_infos__print()
                         fi
 
                     elif [ "$product_stage" = "external-test" ] && [ "$has_production" ]; then
-                        get_next_stage_version "$product_name/production" latest_version
+                        get_next_stage_version "$product_name_list/production" latest_version
                         show_latest_version_in_list="show"
                         show_tags_in_list="show"
                         latest_version_header_text="PROD VER."
@@ -566,12 +601,12 @@ product_infos__print()
 
             print_product=$stage_product_name
 
-            product_path="products/$product_name"
+            product_path="products/$product_name_list"
             stage_filter=":$product_path/$product_stage/** $product_path/product.yaml"
 
-            replace_regex="s/products\/$product_name/./g" 
+            replace_regex="s/products\/$product_name_list/./g" 
 
-            print_product_name=`printf %-${n_products_len}s "$product_name"`
+            print_product_name=`printf %-${n_products_len}s "$product_name_list"`
             print_current_version=`printf %-${n_current_ver_len}s "$current_version"`
 
             print_latest_version=""; 
@@ -595,16 +630,17 @@ product_infos__print()
                 print_files="$(echo "$files" | sed -e $replace_regex)" 
             fi
 
-            line="$print_product_name $print_tags $print_current_version $print_latest_version $print_dependencies"
-            line_full="$line$print_files"
+            print_line="$print_product_name $print_tags $print_current_version $print_latest_version $print_dependencies"
+            print_line_full="`echo "$print_line$print_files"| sed -e 's/[\r\n]//g'`"
             # echo "${#line_full} $max_cols"
-            if [ ! ${#line_full} -gt $max_cols ]; then
-                printf "$line_full\n"
+            if [ ! ${#print_line_full} -gt $max_cols ]; then
+                echo "$print_line_full"
             else
                 w=$(expr $max_cols - 5)
                 # echo "w: $w -- $max_cols"
-                printf "${line_full:0:$w}...\n"
+                printf "${print_line_full:0:$w}...\n"
             fi
+            # echo "jepp:$product_name_list"
         done  
         summarize=""
         if [ $iProducts -gt 0 ];then summarize="${summarize} Products:$iProducts |"; fi
@@ -862,7 +898,7 @@ get_latest_version()
 
                         latest_version_command="git --no-pager grep "chartVersion:" $product_latest_commit_local:$file"
                         {
-                            run_command --latest_version --command-var=latest_version_command --return-var=getlatestversion__latest_version --debug-title='Find latest versions from conent'
+                            run_command --latest_version --command-var=latest_version_command --return-var=getlatestversion__latest_version --skip-error --debug-title='Find latest versions from conent'
                             # echo "getlatestversion__latest_version(0): '$getlatestversion__latest_version'"
                             getlatestversion__latest_version="$(echo "$getlatestversion__latest_version" | cut -d ':' -f 4 | sed -e 's/"//g'|xargs)"
                             product_latest_version=$getlatestversion__latest_version
@@ -892,7 +928,7 @@ append_product_files()
     if [ ! "$file_to_append" ]; then
         file_to_append=$file
     fi
-    if [ ! "$file_to_append" ]; then
+    if [ ! "$file_to_append" ] || [ ! "$stage_product_name" ]; then
         return 
     fi
 
@@ -1040,6 +1076,9 @@ append_product()
     fi
 
     append_product_files "$file_to_append" "$file_status_to_append" append_product_appendproductfiles__return_value
+
+    # echo "file_to_append: $file_to_append --  product_info=${product_infos[${stage_product_name}]}"
+    # exit
 
     if [ "$appendproduct__return_value" = "false" ]; then
         appendproduct__return_value=$append_product_appendproductfiles__return_value
