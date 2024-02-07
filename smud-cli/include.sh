@@ -160,7 +160,7 @@ print_error()
 print_debug() 
 {
     if [ "$debug" ]; then
-        print_color "$thin_gray" "$1"
+        print_color "$gray" "$1"
     fi
 }
 
@@ -339,9 +339,10 @@ run_command()
     fi
 
 }
-
+first_param="$3"
 parse_arguments ARGS $@
 curr_dir=$(pwd)
+get_arg upstream_url '--upstream-url,--upstream,--up-url,-up-url'
 get_arg examples '--examples,--ex,-ex'
 get_arg help '--help,-?,-h' "$examples"
 get_arg separator '--separator,-sep'
@@ -382,11 +383,11 @@ get_arg production '--production,-PROD'
 grep=$(echo "$grep"| sed -e 's/true//g')
 get_arg stage '--stage,-S' '**'
 
-if [ $development ]; then   
+if [ "$development" ]; then   
     if [ "$stage" = "**" ]; then stage="";fi
     stage="$stage development"
 fi
-if [ $internal_test ]; then   
+if [ "$internal_test" ]; then   
     if [ "$stage" = "**" ]; then stage="";fi
     stage="$stage internal-test"
 fi
@@ -396,7 +397,7 @@ if [ "$external_test" ]; then
     stage="$stage external-test"
 fi
 
-if [ $production ]; then   
+if [ "$production" ]; then   
     if [ "$stage" = "**" ]; then stage="";fi
     stage="$stage production"
 fi
@@ -438,10 +439,12 @@ fi
 git_pretty_commit='--pretty=format:%H'
 git_pretty_commit_date='--pretty=format:%H|%ad'
 default_branch="main"
-upstream_url=""
-if [ $has_args ] && [ ! $help ] && [ "$is_repo" ]; then
+if [ "$has_args" ] && [ ! "$help" ] && [ "$is_repo" ]; then
     default_branch="$(git config --list | grep -E 'branch.(main|master).remote' | sed -e 's/branch\.//g' -e 's/\.remote//g' -e 's/=origin//g')"
-    upstream_url="$(git config --get remote.upstream.url)"
+    if [ ! "$upstream_url" ]; then
+        upstream_url="$(git config --get remote.upstream.url)"
+    fi
+
     if [ ! "$default_branch" ]; then
         default_branch=$(git config --get init.defaultbranch)
     fi
@@ -463,7 +466,7 @@ if [ $has_args ] && [ ! $help ] && [ "$is_repo" ]; then
         }
     fi
 
-    if [ ! $to_commit ] && [ ! $is_smud_dev_repo ];then
+    if [ ! "$to_commit" ] && [ ! "$is_smud_dev_repo" ];then
         if [ "$upstream_url" ]; then
             to_commit_command="git rev-list upstream/$default_branch -1"
             run_command to-commit --command-var to_commit_command --return-var to_commit --skip-error --debug-title "to-commit-command"
@@ -535,7 +538,7 @@ filter=":$filter"
 devops_model_filter="GETTING_STARTED.md CHANGELOG.md applicationsets-staged/* environments/* gitops-engine/* repositories/*"
 diff_filter=''
 
-if [ $debug ];then
+if [ "$debug" ];then
     print_debug "filter: $filter"
     if [ "$installed" ]; then
         print_debug "app_files_filter: $app_files_filter"
@@ -543,13 +546,13 @@ if [ $debug ];then
     if [ "$can_do_git" ]; then
         print_debug "Can do commit:"
         if [ "$commit_range" ]; then
-            if [ $from_commit ]; then print_debug "  from-commit: $from_commit"; fi
-            if [ $to_commit ]; then print_debug "  to-commit: $to_commit"; fi
+            if [ "$from_commit" ]; then print_debug "  from-commit: $from_commit"; fi
+            if [ "$to_commit" ]; then print_debug "  to-commit: $to_commit"; fi
             print_debug "  commit range: $commit_range"
         fi
         if [ "$date_range" ]; then
-            if [ $from_date ]; then print_debug "  from-date: $from_date"; fi
-            if [ $to_date ]; then print_debug "  from-date: $to_date"; fi
+            if [ "$from_date" ]; then print_debug "  from-date: $from_date"; fi
+            if [ "$to_date" ]; then print_debug "  from-date: $to_date"; fi
             print_debug "date range: $date_range"
         fi
     fi

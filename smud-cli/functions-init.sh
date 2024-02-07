@@ -105,18 +105,24 @@ init()
         printf "With ${green}$func ${bold}-${normal}, Upstream will be removed. \n"
         return
     fi
-
-    upstream_url="${2:-}"
+    if [ ! "$upstream_url" ]; then
+        upstream_url="$1"
+        if [ ! "$upstream_url" ]; then
+            upstream_url="$first_param"
+        fi
+    fi
     
     remote_origin=$(git config --get remote.origin.url)
     remote_upstream=$(git config --get remote.upstream.url)
 
-    if [ ! "$remote_upstream" ]; then
+    if [ ! "$remote_upstream" ] || [ "$upstream_url" ]; then
         if [ ! "$upstream_url" ]; then
             upstream_url="$default_upstream"
         fi
         set_upstream "$upstream_url"
     fi
+
+    print_debug "upstream_url: $upstream_url"
 
     if [ ! "$is_repo" ]; then
         local yes_no="y"
