@@ -425,7 +425,7 @@ if [ "$filter_product_name" = "[**] " ] || [ ! "$is_smud_gitops_repo" ]; then
 fi
 
 can_list_direct=""
-if ([ ! "$is_smud_gitops_repo" ] || [ $filter_product_name ]) && [ ! "$new" ]; then
+if ([ ! "$is_smud_gitops_repo" ] || [ "$filter_product_name" ]) && [ ! "$new" ]; then
     can_list_direct="1"
 fi
 
@@ -481,7 +481,7 @@ if [ $has_args ] && [ ! $help ] && [ "$is_repo" ]; then
     fi
     if [ "$version" ]; then
         git_grep_version=-GchartVersion:.$version
-        git_grep="$git_grep $git_grep_version"
+        git_grep="$(echo "$git_grep $git_grep_version" | xargs)"
     fi
 fi
 
