@@ -1,3 +1,6 @@
+## Version 1.0.11
+- Added presentation of dependecies
+
 ## Version 1.0.10
 - Improved list for SMUD-GitOps repository
 

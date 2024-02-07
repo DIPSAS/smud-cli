@@ -50,7 +50,7 @@ get_changelog_file()
 
 help()
 {
-    version="$(changelog_get_current_version)"
+    version="$(changelog_get_version)"
 
     # Print information
     echo "${bold}smud${normal}: Help dealing with products in the GitOps repository."
@@ -76,7 +76,7 @@ show_invalid_command()
     show_valid_commands
 }
 
-changelog_get_current_version() 
+changelog_get_version() 
 {
     file=$1    
     if [ ! "$file" ]; then
@@ -97,7 +97,7 @@ version()
     if [ $file ]; then
         changes=(`cat $file |sed -e 's/## Version /\n/g'`)
         printf "${bold}smud version${normal}: Show the version of smud CLI\n" 
-        echo "Current Version "$(changelog_get_current_version)""
+        echo "Current Version "$(changelog_get_version)""
         echo ""
         echo "Changelog:"
         cat $file| sed -e 's/## //g'

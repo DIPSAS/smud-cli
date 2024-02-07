@@ -11,7 +11,6 @@ command=$1
 
 print_verbose "\n${bold}command: $command\n" 
 
-
 if [ ! $command ] ; then
     help
 else

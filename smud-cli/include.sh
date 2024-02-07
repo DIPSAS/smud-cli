@@ -481,7 +481,7 @@ if [ $has_args ] && [ ! $help ] && [ "$is_repo" ]; then
     fi
     if [ "$version" ]; then
         git_grep_version=-GchartVersion:.$version
-        git_grep="$git_grep $git_grep_version"
+        git_grep="$(echo "$git_grep $git_grep_version" | xargs)"
     fi
 fi
 
