@@ -8,7 +8,7 @@
 . $(dirname "$0")/functions-init.sh
 
 command=$1
-
+first_param="$3"
 print_verbose "\n${bold}command: $command\n" 
 
 if [ ! $command ] ; then
@@ -18,7 +18,7 @@ else
         "--help"        ) help;;
         "version"       ) version;;
         "set-upstream"  ) set_upstream;;
-        "init"          ) init $@;;
+        "init"          ) init "$first_param";;
         "update-cli"    ) update_cli;;
         "list"          ) list;;
         "upgrade"       ) upgrade;;
