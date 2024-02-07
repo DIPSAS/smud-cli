@@ -119,7 +119,7 @@ list()
 product_infos__find_latest_products_with_version()
 {
     option="$1"
-
+    source=""
     product_name=""
     pos_colon=2
     progress_title="latest products with version"
@@ -127,13 +127,16 @@ product_infos__find_latest_products_with_version()
         progress_title="installed products with version"
         commit_filter=""
         pos_colon=1
+        app_files_command="git --no-pager grep 'chartVersion: $version' $commit_filter -- :$app_files_filter|uniq"
     else
-        commit_filter="$to_commit"
+        source="git"
+        commit_filter="$git_range"
         if [ ! "$commit_filter" ]; then
             return
         fi
+        app_files_command="git --no-pager diff $commit_filter --no-merges --pretty=format:'' -- :$filter| grep '+++ .*app.yaml\|+++ .*values.yaml\|+  chartVersion'| sed -e 's/+//g' -e 's/b\///g' | uniq"
     fi
-    app_files_command="git --no-pager grep 'chartVersion: $version' $commit_filter -- :$app_files_filter|uniq"
+    
     {
         run_command --files --command-var=app_files_command --return-var=changed_files --debug-title='Find all changed app files'
     } || {
@@ -151,8 +154,8 @@ product_infos__find_latest_products_with_version()
         product_names=()
     fi
 
-    app_files_command="git --no-pager grep -B 0 -A 500 'dependencies:' $commit_filter -- :$app_files_filter|sed -e 's/.*:dependencies://g'|uniq"
-    run_command --files --command-var=app_files_command --return-var=dependencies_files --skip-error --debug-title='Find all dependencies app files'
+    app_dependecy_command="git --no-pager grep -B 0 -A 500 'dependencies:' $commit_filter -- :$app_files_filter|sed -e 's/.*:dependencies://g'|uniq"
+    run_command --files --command-var=app_dependecy_command --return-var=dependencies_files --skip-error --debug-title='Find all dependencies app files'
     if [ "$dependencies_files" ]; then
         IFS=$'\n';read -rd '' -a dependencies_files <<< "$dependencies_files"
     fi
@@ -173,15 +176,20 @@ product_infos__find_latest_products_with_version()
     i=0
     for line in "${changed_files[@]}"
     do
-        i=$((i+1))
-        # echo "$i: line=$line"
 
+        c=$(expr match $line '.*/app\.yaml') 
+        c2=$(expr match $line '.*/values\.yaml') 
+        if [ $c -gt 0 ] || [ $c2 -gt 0 ]; then
+            i=$((i+1))
+            # echo "$i: line=$line"
+            file="$(echo "$line" | cut -d ':' -f $pos_colon)"
+            product_name="$(echo "$file"  | cut -d '/' -f 2)"
+            product_stage="$(echo "$file" | cut -d '/' -f 3)"
+            stage_product_name="$product_name/$product_stage"
+        fi
+        
         progressbar__increase $i "${#product_infos[@]} $progress_title found"
 
-        file="$(echo "$line" | cut -d ':' -f $pos_colon)"
-        product_name="$(echo "$file"  | cut -d '/' -f 2)"
-        product_stage="$(echo "$file" | cut -d '/' -f 3)"
-        stage_product_name="$product_name/$product_stage"
         found_version="$(echo "$line" | cut -d ':' -f $((pos_colon+2))|xargs|sed -e 's/"//g'|xargs|tr -d ['\n','\r'] |cut -d '#' -f 1 |xargs)"
         if [[ ! " ${product_names[@]} " =~ " $product_name " ]]; then
             if [ "$option" = "skip-add-new-product" ]; then
@@ -225,6 +233,7 @@ product_infos__find_latest_products_with_version()
         append_product "$file" "A" "$add_product"
         complete_version
     done
+
     if [ "$dependencies_files" ]; then
         product_info_dependencies=""    
         for line in "${dependencies_files[@]}"
@@ -240,12 +249,15 @@ product_infos__find_latest_products_with_version()
                     product_name="$(echo "$file"  | cut -d '/' -f 2)"
                     product_stage="$(echo "$file" | cut -d '/' -f 3)"
                     local stage_product_name="$product_name/$product_stage"
-                    # echo "stage_product_name: $stage_product_name, dependency: $dependency"
-                    append_product_depenencies "$dependency" "$stage_product_name"
-                    # echo "depedencies_return: $depedencies_return"
                     product_info=${product_infos[$stage_product_name]}
-                    complete_version
-                    # echo "xxx: ${product_infos[$stage_product_name]}"
+                    if [ "$product_info" ];then
+                        # echo "stage_product_name: $stage_product_name, dependency: $dependency"
+                        append_product_depenencies "$dependency" "$stage_product_name"
+                        # echo "depedencies_return: $depedencies_return"
+                        product_info=${product_infos[$stage_product_name]}
+                        complete_version
+                        # echo "xxx: ${product_infos[$stage_product_name]}"
+                    fi
                 fi
             fi
         done
@@ -447,6 +459,7 @@ product_infos__print()
                 product_info__get_current_version product_info current_version
                 if [ ! "$current_version" ]; then
                     get_current_version product_info stage_product_name current_version
+                    # a=1
                 fi    
 
                 if [ "$show_latest_version_in_list" = "true" ]; then
@@ -455,6 +468,7 @@ product_infos__print()
                     if [ ! "$latest_version" ] && [ "$git_range" ]; then
                         get_latest_version latest_version
                     fi    
+    
                 else
                     latest_version=""
                     if [ "$product_stage" = "development" ] && [ "$has_internal_test" ]; then
@@ -862,7 +876,7 @@ get_latest_version()
 
                         latest_version_command="git --no-pager grep "chartVersion:" $product_latest_commit_local:$file"
                         {
-                            run_command --latest_version --command-var=latest_version_command --return-var=getlatestversion__latest_version --debug-title='Find latest versions from conent'
+                            run_command --latest_version --command-var=latest_version_command --return-var=getlatestversion__latest_version --skip-error --debug-title='Find latest versions from conent'
                             # echo "getlatestversion__latest_version(0): '$getlatestversion__latest_version'"
                             getlatestversion__latest_version="$(echo "$getlatestversion__latest_version" | cut -d ':' -f 4 | sed -e 's/"//g'|xargs)"
                             product_latest_version=$getlatestversion__latest_version
