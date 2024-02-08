@@ -353,6 +353,7 @@ first_param="$3"
 parse_arguments ARGS $@
 curr_dir=$(pwd)
 get_arg upstream_url '--upstream-url,--upstream,--up-url,-up-url'
+get_arg skip_auto_update '--skip-auto-update,--skip-auto'
 get_arg examples '--examples,--ex,-ex'
 get_arg help '--help,-?,-h' "$examples"
 get_arg separator '--separator,-sep'

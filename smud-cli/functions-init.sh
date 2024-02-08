@@ -72,12 +72,21 @@ set_origin()
 
 merge_upstream()
 {
+    if [ "$skip_auto_update" ]; then
+        return
+    fi
+    print_not_silent "${gray}Merging upstream into local branch...$reset"
     merge_upstream_command="git merge upstream/main"
     run_command merge-upstream --command-from-var=merge_upstream_command --return-var=dummy --debug-title='Merging upstream repository into local branch' || return
 }
 
 fetch_origin()
 {
+    if [ "$skip_auto_update" ]; then
+        return
+    fi
+    print_not_silent "${gray}Fetching origin...$reset"
+    fetch_origin_command="git fetch origin"
     run_command fetch-origin --command-from-var=fetch_origin_command --return-var=dummy --debug-title='Fetching origin' || return
 } 
 
@@ -147,7 +156,7 @@ init()
         fetch_upstream
     fi
 
-    if [ ! -n "$remote_origin" ]; then
+    if [ ! "$remote_origin" ]; then
         print_not_silent "Setting and fetching origin"
         set_origin
         fetch_origin
