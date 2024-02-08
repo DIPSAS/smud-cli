@@ -171,6 +171,14 @@ print_verbose()
     fi
 }
 
+print_not_silent() 
+{
+    if [ ! "$silent" ] && [ "$1" ]; then
+        printf "$1"
+    fi
+}
+
+
 lower()
 {
     local -n str=$1
@@ -233,14 +241,16 @@ progressbar__increase()
             progressbar__linmessage=", (line $progressbar__current/$progressbar__size)"
         fi
         if [ "$simple" ]; then
-            echo "$progressbar__message$progressbar__linmessage"
+            print_not_silent "$progressbar__message$progressbar__linmessage"
         else 
             local bar_percentage_value=$((100 * $progressbar__current/$progressbar__size))
             local bar_percentage_chars=$(($bar_percentage_value/2))
             local bar_chars="$(printf %${bar_percentage_chars}s "" | tr ' ' '#')"
             local bar_print="`printf %-50s $bar_chars`"
             local bar_percentage_print="(`printf %-3s $bar_percentage_value`%)"
-            echo -ne "$bar_print  $bar_percentage_print -- $progressbar__message$progressbar__linmessage                    \\r"
+            if [ ! "$silent" ]; then
+                echo -ne "$bar_print  $bar_percentage_print -- $progressbar__message$progressbar__linmessage                    \\r"
+            fi
         fi    
         progressbar__last_drawn=$progressbar__current
     fi
@@ -255,11 +265,13 @@ progressbar__end()
         fi
         progressbar__last_drawn=-5
         progressbar__increase $progressbar__size "$msg"
-        echo -ne '\n'
+        if [ ! "$silent" ]; then
+            echo -ne '\n'
+        fi
         progressbar__enabled=""
     fi
 
-    if [ "$2" ]; then
+    if [ "$2" ] && [ ! "$silent" ]; then
         progressbar__stop_time=$(date +"%Y-%m-%d %H:%M:%S")
 
         # Calculate and display the time difference
@@ -333,11 +345,9 @@ run_command()
         fi
         return $run_command_error_code
     fi
-
-    if [ ! "$return_in_var" ];then
+    if [ ! "$return_in_var" ] && [ "$run_command_result" ];then
         echo "$run_command_result"
     fi
-
 }
 first_param="$3"
 parse_arguments ARGS $@

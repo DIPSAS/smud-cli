@@ -65,7 +65,6 @@ list()
         fi
         return
     fi
-
     init
 
     if [ ! "$is_repo" ]; then
@@ -127,7 +126,7 @@ product_infos__find_latest_products_with_version()
         progress_title="installed products with version"
         commit_filter=""
         pos_colon=1
-        app_files_command="git --no-pager grep 'chartVersion: $version' $commit_filter -- :$app_files_filter|uniq"
+        app_files_command="git --no-pager grep 'chartVersion: $version' $commit_filter -- :$app_files_filter|cut -d '#' -f 1|uniq"
     else
         source="git"
         commit_filter="$git_range"
@@ -135,7 +134,7 @@ product_infos__find_latest_products_with_version()
             return
         fi
         pos_colon=0
-        app_files_command="git --no-pager diff $commit_filter --no-merges --pretty=format:'' -- :$filter|grep '+++ .*app.yaml\|+++ .*values.yaml\|+  chartVersion'| sed -e 's/+//g' -e 's/b\///g'|cut -d '#' -f 1 |xargs"
+        app_files_command="git --no-pager diff $commit_filter --no-merges --pretty=format:'' -- :$filter|grep '+++ .*app.yaml\|+++ .*values.yaml\|+  chartVersion'| sed -e 's/+//g' -e 's/b\///g'|cut -d '#' -f 1"
     fi
     
     {
@@ -666,15 +665,17 @@ product_infos__print()
         if [ $iNew -gt 0 ];then summarize="${summarize} New versions:$iNew |"; fi
         if [ "$summarize" ]; then
             echo "----------------------------------------------------------------------------------------------------------"
-            echo "| Stage:$product_stage |$summarize"
-            iProductsTot=$((iProductsTot+iProducts))
-            iMajorTot=$((iMajorTot+iMajor))
-            iMinorTot=$((iMinorTot+iMinor))
-            iPatchTot=$((iPatchTot+iPatch))
-            iSameTot=$((iSameTot+iSame))
-            iNewTot=$((iNewTot+iNew))
-            iStagesTot=$((iStagesTot+1))
-            echo "=========================================================================================================="
+            if [ ! "$silent" ]; then
+                echo "| Stage:$product_stage |$summarize"
+                iProductsTot=$((iProductsTot+iProducts))
+                iMajorTot=$((iMajorTot+iMajor))
+                iMinorTot=$((iMinorTot+iMinor))
+                iPatchTot=$((iPatchTot+iPatch))
+                iSameTot=$((iSameTot+iSame))
+                iNewTot=$((iNewTot+iNew))
+                iStagesTot=$((iStagesTot+1))
+                echo "=========================================================================================================="
+            fi
         fi
     done
     if [ ! "$print_product" ]; then
@@ -689,7 +690,7 @@ product_infos__print()
         if [ $iPatchTot -gt 0 ];then summarize="${summarize} Patches:$iPatchTot |"; fi
         if [ $iSameTot -gt 0 ];then summarize="${summarize} Same versions:$iSameTot |"; fi
         if [ $iNewTot -gt 0 ];then summarize="${summarize} New versions:$iNewTot |"; fi
-        if [ "$summarize" ]; then
+        if [ "$summarize" ] && [ ! "$silent" ]; then
             echo "| Stages:$iStagesTot |TOTAL $summarize"
             echo "=========================================================================================================="
         fi
@@ -911,7 +912,7 @@ get_latest_version()
                     if [ "$product_latest_commit_local" ]; then
                         # echo "**** [$get_latest_version_commit_file]"
 
-                        latest_version_command="git --no-pager grep "chartVersion:" $product_latest_commit_local:$file|cut -d '#' -f 1 |xargs"
+                        latest_version_command="git --no-pager grep "chartVersion:" $product_latest_commit_local:$file|cut -d '#' -f 1"
                         {
                             run_command --latest_version --command-var=latest_version_command --return-var=getlatestversion__latest_version --skip-error --debug-title='Find latest versions from conent'
                             # echo "getlatestversion__latest_version(0): '$getlatestversion__latest_version'"
