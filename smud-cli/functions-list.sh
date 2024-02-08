@@ -80,10 +80,10 @@ list()
 
     if [ ! "$separator" ] && [ ! "$hide_title" ]; then
         # print title
-        if [ $new ]; then
+        if [ "$new" ]; then
             diff_filter='--diff-filter=ACMRT'
             printf "${white}List new products ready for installation:${normal}\n"
-        elif [ $installed ]; then
+        elif [ "$installed" ]; then
           printf "${white}List current products installed:${normal}\n"
         else
             printf "${white}List new or updated products ready for installation:${normal}\n"
@@ -135,7 +135,7 @@ product_infos__find_latest_products_with_version()
             return
         fi
         pos_colon=0
-        app_files_command="git --no-pager diff $commit_filter --no-merges --pretty=format:'' -- :$filter| grep '+++ .*app.yaml\|+++ .*values.yaml\|+  chartVersion'| sed -e 's/+//g' -e 's/b\///g'"
+        app_files_command="git --no-pager diff $commit_filter --no-merges --pretty=format:'' -- :$filter|grep '+++ .*app.yaml\|+++ .*values.yaml\|+  chartVersion'| sed -e 's/+//g' -e 's/b\///g'|cut -d '#' -f 1 |xargs"
     fi
     
     {
@@ -178,9 +178,16 @@ product_infos__find_latest_products_with_version()
     for l in "${changed_files[@]}"
     do
         cChartVersion=0
+        if [ ! "$l" ];then
+            continue
+        fi
         line="$(echo "$l"|sed -e 's/[\r\n]//g'|xargs)"
-        c=$(expr match $line '.*/app\.yaml') 
-        c2=$(expr match $line '.*/values\.yaml') 
+        if [ ! "$line" ];then
+            continue
+        fi
+
+        c=$(expr match "$line" '.*/app\.yaml')
+        c2=$(expr match "$line" '.*/values\.yaml')
         if [ $c -gt 0 ] || [ $c2 -gt 0 ]; then
             i=$((i+1))
             if [ $pos_colon -gt 0 ]; then
@@ -191,6 +198,11 @@ product_infos__find_latest_products_with_version()
             product_name="$(echo "$file"  | cut -d '/' -f 2|xargs)"
             product_stage="$(echo "$file" | cut -d '/' -f 3|xargs)"
             stage_product_name="$product_name/$product_stage"
+            if [ ! "$source" ]; then
+                if [ $pos_colon -gt 0 ]; then
+                    cChartVersion=$(echo "$line" | grep ':' -c)
+                fi
+            fi
         else
             cChartVersion=$(echo "$line" | grep ':' -c)
             file="products/$stage_product_name/app.yaml"
@@ -255,7 +267,10 @@ product_infos__find_latest_products_with_version()
         product_info_dependencies=""    
         for line in "${dependencies_files[@]}"
         do
-            c=$(expr match $line '.*/app\.yaml') 
+            if [ ! "$line" ];then
+                continue
+            fi
+            c=$(expr match "$line" '.*/app\.yaml') 
             if [ $c -gt 0 ]; then
                 file="${line:0:$c}"
                 local dependency="${line:$((c+1))}"
@@ -874,7 +889,7 @@ get_latest_version()
                     file="products/$stage_product_name/app.yaml"
                     c=1
                 else   
-                    c=$(expr match $file '.*/app\.yaml') 
+                    c=$(expr match "$file" '.*/app\.yaml') 
                 fi
                                   
                 if [ $c -gt 0 ]; then
@@ -896,7 +911,7 @@ get_latest_version()
                     if [ "$product_latest_commit_local" ]; then
                         # echo "**** [$get_latest_version_commit_file]"
 
-                        latest_version_command="git --no-pager grep "chartVersion:" $product_latest_commit_local:$file"
+                        latest_version_command="git --no-pager grep "chartVersion:" $product_latest_commit_local:$file|cut -d '#' -f 1 |xargs"
                         {
                             run_command --latest_version --command-var=latest_version_command --return-var=getlatestversion__latest_version --skip-error --debug-title='Find latest versions from conent'
                             # echo "getlatestversion__latest_version(0): '$getlatestversion__latest_version'"
@@ -945,10 +960,10 @@ append_product_files()
         old=$files__product_info_files
 
         if [ "$files__product_info_files" ]; then
-            c=$(echo "$files__product_info_files" | grep $file_to_append -c)
+            c=$(echo "$files__product_info_files" | grep "$file_to_append" -c)
 
             # echo "c:$c, old:$old, file_to_append:$file_to_append"   
-            if [ $c -eq 0 ]; then
+            if [ "$c" = "0" ]; then
                 if [ ! "$file_state_to_append" = "D" ]; then
                     files__product_info_files="$(echo "$files__product_info_files $file_to_append" | xargs)"
                 fi    
@@ -1004,7 +1019,7 @@ append_product_depenencies()
         # echo "*** depenency__product_info($depenency_stage_product_name): $depenency__product_info -- depenencies: $depenency__product_info_dependencies"
 
         if [ "$depenency__product_info_dependencies" ]; then
-            c=$(echo "$depenency__product_info_dependencies" | grep $dependency_to_append -c)
+            c=$(echo "$depenency__product_info_dependencies" | grep "$dependency_to_append" -c)
 
             # echo "c:$c, old:$old, dependency_to_append:$dependency_to_append"   
             if [ $c -eq 0 ]; then

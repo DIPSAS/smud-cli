@@ -7,7 +7,7 @@ show_valid_commands()
     echo "  version       Show the version-log of smud CLI" 
     echo "  list          List products ready for installation or current products installed."
 
-    if [ ! $is_smud_dev_repo ]; then
+    if [ ! "$is_smud_dev_repo" ]; then
         echo "  apply         Apply one or more productst to the repository."
         echo "  set-upstream  Set upstream. If not specfied upstream-url, the https://github.com/DIPSAS/DIPS-GitOps-Template.git will be configured."
         echo "  upstream      Fetch upstream. If upstream-url is not set, the https://github.com/DIPSAS/DIPS-GitOps-Template.git will be configured before upstream is fetched."
@@ -91,7 +91,7 @@ version()
 {
     file="$(get_changelog_file)"
 
-    if [ $file ]; then
+    if [ "$file" ]; then
         changes=(`cat $file |sed -e 's/## Version /\n/g'`)
         printf "${bold}smud version${normal}: Show the version of smud CLI\n" 
         echo "Current Version "$(changelog_get_version)""
@@ -107,7 +107,7 @@ version()
 
 update_cli()
 {
-    if [ $help ]; then
+    if [ "$help" ]; then
         printf "${bold}smud update-cli${normal}: Download and update the smud CLI.\n"
         printf "                 Required ${bold}curl${normal} installed on the computer.\n"
         echo ""

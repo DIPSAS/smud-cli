@@ -6,7 +6,7 @@ default_upstream="https://github.com/DIPSAS/DIPS-GitOps-Template.git"
 set_upstream()
 {
     new_upstream="$1"
-    if [ $help ]; then
+    if [ "$help" ]; then
         echo "${bold}smud set-upstream${normal}: Set upstream"
         printf "With Only ${green}set-upstream${normal}, Upstream '$default_upstream' will be configured if not configured yet. \n"
         printf "With ${green}set-upstream ${bold}<value>${normal}, Upstream '<value>' will be configured. \n"
@@ -21,7 +21,7 @@ set_upstream()
 
     i=0
     
-    if [ $new_upstream ]; then
+    if [ "$new_upstream" ]; then
         remove_upstream_command="git remote rm upstream"
         run_command remove-upstream --command-from-var=remove_upstream_command --debug-title='Removing upstream config URL'
         if [ "$new_upstream" = "-" ]; then
@@ -32,7 +32,7 @@ set_upstream()
             run_command add_upstream_command --command-from-var=add_upstream_command --debug-title='Adding upstream with user specified URL'
             printf "${gray}Upstream configured with '$new_upstream' ${normal}\n"
         fi
-    elif [ ! $new_upstream ]; then
+    elif [ ! "$new_upstream" ]; then
         new_upstream=$default_upstream
         add_upstream_command="git remote add upstream $new_upstream"
         run_command add_upstream_command --command-from-var=add_upstream_command --debug-title='Adding upstream with default URL'
@@ -97,7 +97,7 @@ fetch_upstream()
 # Initalizes repo, upstream and origin if not configured. Will always fetch upstream when called.
 init()
 {
-    if [ $help ]; then
+    if [ "$help" ]; then
         func=${1:-init}
         echo "${bold}smud $func${normal}: Initializes local repository and sets upstream and origin remotes"
         printf "With Only ${green}$func${normal}, Upstream '$default_upstream' will be configured if not configured yet. When configured the upstream will be fetched. \n"

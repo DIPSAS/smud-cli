@@ -10,10 +10,10 @@
 command=$1
 print_verbose "\n${bold}command: $command\n" 
 
-if [ ! $command ] ; then
+if [ ! "$command" ] ; then
     help
 else
-    case $command in 
+    case "$command" in 
         "--help"        ) help;;
         "version"       ) version;;
         "set-upstream"  ) set_upstream;;

@@ -14,7 +14,7 @@ upgrade()
     if [ "$debug" ] && [ "$git_grep" ]; then
         echo "git_grep: $git_grep"
     fi
-    if [ $help ]; then
+    if [ "$help" ]; then
         echo "${bold}smud upgrade${normal} [options]: Upgrade one or more productst to the repository."
         echo ""
         echo "Options:"
@@ -175,7 +175,7 @@ upgrade()
                     # Extract the file status
                     status_code=$(echo "$line" | cut -c -2)
                     # Extract the file name
-                    file=$(echo "$line" | cut -c 4-)
+                    file=$(echo "$line" | cut -c -4)
                     # Add the file to the map where the status is the key
                      if [[ -n "${status_map["$status_code"]}" ]]; then
                         # If it exists, append the current file to the existing array
@@ -248,20 +248,20 @@ upgrade()
             echo ""
             printf "${green}All selected $context was successfully upgraded.${normal}"
             echo ""
-            if [ ! $silent ] && [ ! $remote ]; then
+            if [ ! "$silent" ] && [ ! "$remote" ]; then
                 printf "${yellow}Do you want to push applied changes to remote branch $remote (Yes/No)? ${normal}"
                 read yes_no
                 yes_no=$(echo "$yes_no" | tr '[:upper:]' '[:lower:]')
                 printf "${gray}You selected: $yes_no${normal}\n"
             fi    
             if [ "$yes_no" = "yes" ] || [ "$yes_no" = "y" ]; then
-                if [ ! $remote ] || [ "$remote" = "true" ]; then
+                if [ ! "$remote" ] || [ "$remote" = "true" ]; then
                     default_branch=${default_branch:-main}
                     remote=$default_branch
-                    if [ ! $silent ]; then
+                    if [ ! "$silent" ]; then
                         printf "${yellow}Select the remote branch (default to '$remote'): ${normal}"
                         read remote
-                        if [ ! $remote ]; then
+                        if [ ! "$remote" ]; then
                             remote=$default_branch
                         fi
                         
@@ -278,7 +278,7 @@ upgrade()
             yes_no="no"
             echo ""
             printf "${red}Selected $context was NOT successfully applied.${normal}\n"
-            if [ ! $silent ]; then
+            if [ ! "$silent" ]; then
                 printf "${yellow}Do you want to abort the upgrade-operation (Yes/No)? ${normal}"
                 read yes_no
                 yes_no=$(echo "$yes_no" | tr '[:upper:]' '[:lower:]')
@@ -375,7 +375,7 @@ correlate_against_already_cherripicked()
         fi
         for rev in "${revision_list[@]}"
         do
-            local c=$(echo "$cherrypicked_commits" | grep $rev -c)
+            local c=$(echo "$cherrypicked_commits" | grep "$rev" -c)
             if [ "$c" = "0" ]; then
             # if [[ ! " ${cherrypicked_commits_arr[@]} " =~ " $rev " ]]; then
                 rev_list_checked+=("$rev")
