@@ -379,6 +379,7 @@ get_arg to_date '--to-date,-TD'
 get_arg grep '--grep'
 get_arg undo '--undo,--reset'
 get_arg soft '--soft'
+get_arg undo_date '--date'
 get_arg no_progress '--no-progress,--skip-progress' "$silent"
 get_arg skip_push '--skip-push,--no-push'
 get_arg skip_files '--skip-files,--no-files'

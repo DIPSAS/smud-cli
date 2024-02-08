@@ -46,6 +46,8 @@ upgrade()
         echo "      If --remote is used, the default-branch will be used"
         echo "  --undo=<commit>:"
         echo "      Undo all changes back to specific commit"
+        echo "  --undo --date='two days ago':"
+        echo "      Undo all changes back to specific commit"
         echo "  --examples,-ex:"
         echo "      Show examples"
         if [ "$examples" ]; then 
@@ -318,9 +320,19 @@ get_status_description() {
 
 reset_to_commit()
 {
-    if [ "$undo" = "true" ]; then
-        print_error "You must add the commit to the --undo flag. Ex: --undo b3..."
+    if [ "$undo" = "true" ] && [ ! "$undo_date" ]; then
+        print_error "You must add the commit or --date to the --undo flag. Ex: --undo b3..., or --undo --date yesterday"
         return
+    fi
+    if [ "$undo_date" ]; then
+        undo_date_range="--before $(echo "$undo_date"| sed -e 's/ /./g')" 
+        local undo_commit_from_datecommand="git log $undo_date_range --pretty=format:'%H' --max-count=1"    
+        run_command --find-undo-commit --command-var=undo_commit_from_datecommand --return-var='undo' --debug-title='Find undo commit-id from undo-date'
+        if [ ! "$undo" ]; then
+            print_error "Unable to find undo commit-id based on undo commit-date '$undo_date'"
+            return
+        fi
+
     fi
     local has_undo_commit_command="git log $undo --max-count=1 --no-merges --oneline"
     run_command --has-commits --command-var=has_undo_commit_command --return-var='has_undo_commit' --debug-title='Check if undo commit exists' || 
