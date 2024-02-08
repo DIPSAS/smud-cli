@@ -14,7 +14,7 @@ upgrade()
     if [ "$debug" ] && [ "$git_grep" ]; then
         echo "git_grep: $git_grep"
     fi
-    if [ $help ]; then
+    if [ "$help" ]; then
         echo "${bold}smud upgrade${normal} [options]: Upgrade one or more productst to the repository."
         echo ""
         echo "Options:"
@@ -248,20 +248,20 @@ upgrade()
             echo ""
             printf "${green}All selected $context was successfully upgraded.${normal}"
             echo ""
-            if [ ! $silent ] && [ ! $remote ]; then
+            if [ ! "$silent" ] && [ ! "$remote" ]; then
                 printf "${yellow}Do you want to push applied changes to remote branch $remote (Yes/No)? ${normal}"
                 read yes_no
                 yes_no=$(echo "$yes_no" | tr '[:upper:]' '[:lower:]')
                 printf "${gray}You selected: $yes_no${normal}\n"
             fi    
             if [ "$yes_no" = "yes" ] || [ "$yes_no" = "y" ]; then
-                if [ ! $remote ] || [ "$remote" = "true" ]; then
+                if [ ! "$remote" ] || [ "$remote" = "true" ]; then
                     default_branch=${default_branch:-main}
                     remote=$default_branch
-                    if [ ! $silent ]; then
+                    if [ ! "$silent" ]; then
                         printf "${yellow}Select the remote branch (default to '$remote'): ${normal}"
                         read remote
-                        if [ ! $remote ]; then
+                        if [ ! "$remote" ]; then
                             remote=$default_branch
                         fi
                         
@@ -278,7 +278,7 @@ upgrade()
             yes_no="no"
             echo ""
             printf "${red}Selected $context was NOT successfully applied.${normal}\n"
-            if [ ! $silent ]; then
+            if [ ! "$silent" ]; then
                 printf "${yellow}Do you want to abort the upgrade-operation (Yes/No)? ${normal}"
                 read yes_no
                 yes_no=$(echo "$yes_no" | tr '[:upper:]' '[:lower:]')

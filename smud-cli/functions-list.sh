@@ -80,10 +80,10 @@ list()
 
     if [ ! "$separator" ] && [ ! "$hide_title" ]; then
         # print title
-        if [ $new ]; then
+        if [ "$new" ]; then
             diff_filter='--diff-filter=ACMRT'
             printf "${white}List new products ready for installation:${normal}\n"
-        elif [ $installed ]; then
+        elif [ "$installed" ]; then
           printf "${white}List current products installed:${normal}\n"
         else
             printf "${white}List new or updated products ready for installation:${normal}\n"

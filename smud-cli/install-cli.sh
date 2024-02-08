@@ -17,7 +17,7 @@ if [ $smud_aliases -eq 0 ]; then
     echo "  . ~/smud-cli/.bash_aliases" >> $HOME_ABS_DIR/.bashrc
     echo "fi" >> $HOME_ABS_DIR/.bashrc
 
-    if [ $HOMEDRIVE ] && [ -f $HOME_ABS_DIR/.bash_profile ]; then
+    if [ "$HOMEDRIVE" ] && [ -f $HOME_ABS_DIR/.bash_profile ]; then
         bashrc_count=`cat $HOME_ABS_DIR/.bash_profile | grep "~/.bashrc" -c`
         if [ $bashrc_count -eq 0 ]; then
             echo "" >> $HOME_ABS_DIR/.bash_profile
