@@ -353,6 +353,8 @@ first_param="$3"
 parse_arguments ARGS $@
 curr_dir=$(pwd)
 get_arg upstream_url '--upstream-url,--upstream,--up-url,-up-url'
+get_arg source_branch '--source-branch,--source'
+get_arg configs '--configs,--settings,--show'
 get_arg skip_auto_update '--skip-auto-update,--skip-auto'
 get_arg examples '--examples,--ex,-ex'
 get_arg help '--help,-?,-h' "$examples"
@@ -451,22 +453,28 @@ fi
 git_pretty_commit='--pretty=format:%H'
 git_pretty_commit_date='--pretty=format:%H|%ad'
 default_branch="main"
+current_branch="$default_branch"
 if [ "$has_args" ] && [ ! "$help" ] && [ "$is_repo" ]; then
     default_branch="$(git config --list | grep -E 'branch.(main|master).remote' | sed -e 's/branch\.//g' -e 's/\.remote//g' -e 's/=origin//g')"
-    if [ ! "$upstream_url" ]; then
-        upstream_url="$(git config --get remote.upstream.url)"
-    fi
-
     if [ ! "$default_branch" ]; then
-        default_branch=$(git config --get init.defaultbranch)
+        default_branch="$(git config --get init.defaultbranch)"
     fi
-
     if [ ! "$default_branch" ]; then
         default_branch="main"
         can_do_git=""
     else
         can_do_git="$(git branch --list $default_branch)"
     fi
+
+    current_branch="$(git branch --show-current)"
+    if [ ! "$current_branch" ]; then
+        current_branch="$default_branch"
+    fi
+
+    if [ ! "$upstream_url" ]; then
+        upstream_url="$(git config --get remote.upstream.url)"
+    fi
+
 
     if [ ! "$from_commit" ] && [ ! "$from_date" ] && [ "$can_do_git" ] ; then
         from_commit_command="git rev-list $default_branch -1"
@@ -479,8 +487,14 @@ if [ "$has_args" ] && [ ! "$help" ] && [ "$is_repo" ]; then
     fi
 
     if [ ! "$to_commit" ] && [ ! "$is_smud_dev_repo" ];then
-        if [ "$upstream_url" ]; then
-            to_commit_command="git rev-list upstream/$default_branch -1"
+        if [ ! "$source_branch" ]; then
+            source_branch=$(git config --get source.$current_branch)
+        fi
+        if [ ! "$source_branch" ]; then
+            source_branch="upstream/$default_branch"
+        fi
+        if [ "$upstream_url" ] || [ ! "$source_branch" = "upstream/$default_branch" ]; then
+            to_commit_command="git rev-list $source_branch -1"
             run_command to-commit --command-var to_commit_command --return-var to_commit --skip-error --debug-title "to-commit-command"
         fi
     fi

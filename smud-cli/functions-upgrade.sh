@@ -130,7 +130,7 @@ upgrade()
     # git_range="${rev_list[@]}"
 
     list 
-    
+    error_code=0
     yes_no="yes"
     if [ ! "$silent" ]; then
       ask yes_no "$yellow" "Do you want to continue upgrading the selected $context (Yes/No)?"
@@ -143,28 +143,30 @@ upgrade()
         print_debug "$commits"
         # If there are any current unapplied changes, cherry pick will fail. Catch this.
         cherrypick_commits_command="git cherry-pick $commits $cherrypick_options"
-        run_command cherry-pick --command-var=cherrypick_commits_command --return-var=log --skip-error --debug-title='Start cherry-pick' || error_message=$log
+        run_command cherry-pick --command-var=cherrypick_commits_command --return-var=log --skip-error --error-code error_code --debug-title='Start cherry-pick' || error_message=$log
 
         # Check if cherry-pick in progress
         error_index="$(echo "$error_message" | grep "cherry-pick is already in progress" -c)"
         if [ $error_index -gt 0 ]; then
+            error_code=0
             error_message=""
             cherrypick_commits_command="git cherry-pick --continue $cherrypick_options"
-            run_command cherry-pick --command-var=cherrypick_commits_command --return-var=log --debug-title='Continue cherry-pick' || error_message=$log
+            run_command cherry-pick --command-var=cherrypick_commits_command --return-var=log --error-code error_code --debug-title='Continue cherry-pick' || error_message=$log
         fi
 
         # Check if cherry-pick was resolved
         error_index="$(echo "$error_message" | grep "The previous cherry-pick is now empty, possibly due to conflict resolution" -c)"
         if [ $error_index -gt 0 ]; then
             error_message=""
+            error_code=0
             cherrypick_commits_command="git cherry-pick --skip $cherrypick_options"
-            run_command cherry-pick --command-var=cherrypick_commits_command --return-var=log --debug-title='Skip cherry-pick' || error_message=$log
+            run_command cherry-pick --command-var=cherrypick_commits_command --return-var=log --error-code error_code --debug-title='Skip cherry-pick' || error_message=$log
         fi
 
         # Loop until no conflicts
         # Print status in plain text after each file listing
         # If the conflict is UD (delete happened in remote) resolve it automatically using "merge-strategy theirs"
-        if [ -n "$error_message" ]; then
+        if [ "$error_message" ]; then
             errors_resolved="false"
             printf "${red}Cherry-pick ran into errors that must be resolved manually.\n${normal}"
             #echo "$error_message"
@@ -190,8 +192,12 @@ upgrade()
 
                 merge_conflict_status_codes="DD AU UD UA DU AA UU"
                 untracked_status_code="??"
-
-                printf "${red}The follwing contains changes that must be resolved:\n${normal}" 
+                if [ "$silent" ]; then
+                    printf "${red}There is a merge conflict!"
+                else
+                    printf "${red}The follwing contains changes that must be resolved:\n${normal}" 
+                fi
+                
                 for status_code in "${!status_map[@]}"; do
                     filenames="${status_map[$status_code]}"
                     description=$(get_status_description "$status_code")
@@ -201,13 +207,26 @@ upgrade()
                         printf "\t* ${gray}$filename\n${normal}"
                     done 
                 done
-               
+
+                if [ "$silent" ]; then
+                    echo "Aborting the cherry-pick process."
+                    cherrypick_abort_command="git cherry-pick --abort"
+                    run_command cherry-pick-abort --command-var=cherrypick_abort_command --return-var=dummy --skip-error --debug-title='Abort cherry-pick'
+                    if [ ! "$error_code" ] || [ "$error_code" = "0" ]; then
+                        error_code=1
+                    fi
+
+                    exit $error_code
+                fi
+
                 printf "${red}After resolving the errors, "
                 read -p "press [enter] to continue. To abort press [A][enter]. To skip commit press [S][enter]: " continue_or_abort
                 lower continue_or_abort
                 printf "${normal}\n"
                 if [ "$continue_or_abort" = "a" ]; then
-                    log=$(git cherry-pick --abort > /dev/null 2>&1 )
+                    error_code=0
+                    cherrypick_abort_command="git cherry-pick --abort"
+                    run_command cherry-pick-abort --command-var=cherrypick_abort_command --return-var=dummy --skip-error --debug-title='Abort cherry-pick'
                     exit
                 fi
 
@@ -398,7 +417,7 @@ correlate_against_already_cherripicked()
             fi
         done
         revision_list=("${rev_list_checked[@]}")
-        if [ ${#revision_list[@]} -gt 0 ]; then
+        if [ ${#revision_list[@]} -gt 0 ] && [ ! "$silent" ]; then
             print_gray "Number of revisions corrolated agains already cherry-picked commits: $normal${#revision_list[@]}"
         fi
     fi

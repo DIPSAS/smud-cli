@@ -115,13 +115,21 @@ init()
 {
     if [ "$help" ]; then
         func=${1:-init}
-        echo "${bold}smud $func${normal}: Initializes local repository and sets upstream and origin remotes"
-        printf "With Only ${green}$func${normal}, Upstream '$default_upstream' will be configured if not configured yet. When configured the upstream will be fetched. \n"
-        printf "With ${green}$func ${bold}<value>${normal}, Upstream '<value>' will be configured before upstream is fetched. \n"
-        printf "With ${green}$func ${bold}--upstream-url <value>${normal}, Upstream '<value>' will be configured before upstream is fetched. \n"
-        printf "With ${green}$func ${bold}-${normal}, Upstream will be removed. \n"
+        echo "${bold}smud $func${normal}: Initializes local repository and sets upstream, origin remotes and source-branch"
+        printf "Upstream: \n"
+        printf "  With Only ${green}$func${normal}, Upstream '$default_upstream' will be configured if not configured yet. When configured the upstream will be fetched. \n"
+        printf "  With ${green}$func ${bold}<value>${normal}, Upstream '<value>' will be configured before upstream is fetched. \n"
+        printf "  With ${green}$func ${bold}--upstream-url <value>${normal}, Upstream '<value>' will be configured before upstream is fetched. \n"
+        printf "  With ${green}$func ${bold}-${normal}, Upstream will be removed. \n"
+        printf "source-branch: \n"
+        printf "  With Only ${green}$func${normal}, source-branch will be configured to 'upstream/$default_branch' . \n"
+        printf "  With ${green}$func ${bold}${green}--source-branch${normal} <value>${normal}, source-branch '<value>' will be configured. \n"
+        printf "Show configs: \n"
+        printf "  ${green}$func${normal} ${green}--configs${normal} will list all repository config key/values. ${green}--show${normal} or ${green}--settings${normal} can be used as well. \n"
+        printf "  ${green}$func${normal} ${green}--show${normal} or ${green}--settings${normal} can be used as well. \n"
         return
     fi
+    
     if [ ! "$upstream_url" ]; then
         upstream_url="$1"
         if [ ! "$upstream_url" ]; then
@@ -156,10 +164,33 @@ init()
         fetch_upstream
     fi
 
+    if [ "$is_repo" ]; then
+        if [ ! "$source_branch" ]; then
+            source_branch=$(git config --get source.$current_branch)
+        fi
+        if [ ! "$source_branch" ]; then
+            source_branch="upstream/$default_branch"
+        fi
+
+        old=$(git config --get source.$current_branch)
+        if [ ! "$old" = "$source_branch" ] || [ ! "$old" ] ; then
+            if [ "$old" ]; then
+                dummy=$(git config --unset source.$current_branch)
+            fi
+            dummy=$(git config --add source.$current_branch $source_branch)
+        fi
+    fi
+
+
     if [ ! "$remote_origin" ]; then
         print_not_silent "Setting and fetching origin"
         set_origin
         fetch_origin
         print_not_silent "${green}Initalization complete.\n${normal}"
+    fi
+
+    if [ "$configs" ]; then
+        config_command="git config -l"
+        run_command config-list --command-var config_command  --skip-error
     fi
 }
