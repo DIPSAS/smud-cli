@@ -138,6 +138,32 @@ upgrade()
     local cherrypick_options="--keep-redundant-commits --allow-empty -x"
     local upgrade_error_code=0
     if [ "$yes_no" = "yes" ]; then
+
+        local user_name=$(git config --get user.name)
+        local user_email=$(git config --get user.email)
+
+        if [ ! "$user_name" ] || [ ! "$user_email" ]; then
+            local remote_origin_url="$(git config --get remote.origin.url| sed -e 's/https:\/\//')"    
+            if [ ! "$user_name" ]; then
+                local user_name="githubservicesmud"
+            fi
+
+            if [ ! "$user_email" ]; then
+                local user_email="githubservicesmud@dips.no"
+            fi
+            local user_name_ask="$user_name"
+            local user_email_ask="$user_email"
+            if [ ! "$silent" ]; then
+                ask user_name_ask $blue "Please configure git user.name: Push ENTER to use '$user_name_ask': "
+                ask user_email_ask $blue "Please configure git user.email: Push ENTER to use '$user_email_ask': "
+            fi
+            
+            local dummy=$(git config --unset user.name)
+            local dummy=$(git config --unset user.email)
+            local dummy=$(git config --add user.name "$user_name_ask" )
+            local dummy=$(git config --add user.email "$user_email_ask" )
+        fi
+
         commits="${rev_list[@]}"
         print_gray "Running: git cherry-pick [commits]...\n"   
         print_debug "$commits"
@@ -197,7 +223,7 @@ upgrade()
                 else
                     printf "${red}The follwing contains changes that must be resolved:\n${normal}" 
                 fi
-                
+
                 for status_code in "${!status_map[@]}"; do
                     filenames="${status_map[$status_code]}"
                     description=$(get_status_description "$status_code")

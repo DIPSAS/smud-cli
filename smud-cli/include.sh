@@ -477,7 +477,7 @@ if [ "$has_args" ] && [ ! "$help" ] && [ "$is_repo" ]; then
 
 
     if [ ! "$from_commit" ] && [ ! "$from_date" ] && [ "$can_do_git" ] ; then
-        from_commit_command="git rev-list $default_branch -1"
+        from_commit_command="git rev-list $current_branch -1"
         {
             run_command from-commit --command-var from_commit_command --return-var from_commit --skip-error --debug-title "from-commit-command"
         } || {
