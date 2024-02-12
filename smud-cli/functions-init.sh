@@ -41,7 +41,7 @@ set_upstream()
             print_not_silent "${gray}Upstream configured with '$new_upstream' ${normal}\n"
         fi
     elif [ ! "$new_upstream" ]; then
-        new_upstream=$default_upstream
+        new_upstream="$default_upstream"
         add_upstream_command="git remote add upstream $new_upstream"
         run_command add_upstream_command --command-from-var=add_upstream_command --debug-title='Adding upstream with default URL'
         print_not_silent "${gray}Upstream configured with '$new_upstream' ${normal}\n"
@@ -96,7 +96,7 @@ init_repo()
     run_command init-repo --command-from-var=init_command --return-var=dummy --debug-title='Initializing repository' || return
     is_repo="true"
 
-    branches=$(git branch)
+    branches="$(git branch)"
     if [ ! -n "$branches" ]; then
         # "main" possibly not default branch name so create it
         create_main_branch="git checkout -b main"
@@ -114,7 +114,7 @@ fetch_upstream()
 init()
 {
     if [ "$help" ]; then
-        func=${1:-init}
+        func="${1:-init}"
         echo "${bold}smud $func${normal}: Initializes local repository and sets upstream, origin remotes and source-branch"
         printf "Upstream: \n"
         printf "  With Only ${green}$func${normal}, Upstream '$default_upstream' will be configured if not configured yet. When configured the upstream will be fetched. \n"
@@ -136,8 +136,8 @@ init()
             upstream_url="$first_param"
         fi
     fi
-    remote_origin=$(git config --get remote.origin.url)
-    remote_upstream=$(git config --get remote.upstream.url)
+    remote_origin="$(git config --get remote.origin.url)"
+    remote_upstream="$(git config --get remote.upstream.url)"
 
     if [ ! "$remote_upstream" ] || [ "$upstream_url" ]; then
         if [ ! "$upstream_url" ]; then
@@ -166,18 +166,18 @@ init()
 
     if [ "$is_repo" ]; then
         if [ ! "$source_branch" ]; then
-            source_branch=$(git config --get source.$current_branch)
+            source_branch="$(git config --get source.$current_branch)"
         fi
         if [ ! "$source_branch" ]; then
             source_branch="upstream/$default_branch"
         fi
 
-        old=$(git config --get source.$current_branch)
+        old="$(git config --get source.$current_branch)"
         if [ ! "$old" = "$source_branch" ] || [ ! "$old" ] ; then
             if [ "$old" ]; then
-                dummy=$(git config --unset source.$current_branch)
+                dummy="$(git config --unset source.$current_branch)"
             fi
-            dummy=$(git config --add source.$current_branch $source_branch)
+            dummy="$(git config --add source.$current_branch $source_branch)"
         fi
     fi
 

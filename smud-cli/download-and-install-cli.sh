@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-HOME_DIR=$(dirname `readlink -f ~/.bashrc`)
+HOME_DIR="$(dirname `readlink -f ~/.bashrc`)"
 VERSION="LATEST"
 folder=smud-cli
-curr_dir=$(pwd)
-destination_folder=$HOME_DIR/$folder
-download_folder=$HOME_DIR/$folder-downloaded
-download_json_file=$download_folder/downloaded-info.json
+curr_dir="$(pwd)"
+destination_folder="$HOME_DIR/$folder"
+download_folder="$HOME_DIR/$folder-downloaded"
+download_json_file="$download_folder/downloaded-info.json"
 if [ -d "$download_folder" ];then
    rm -rf $download_folder 
 fi
@@ -61,7 +61,7 @@ for url in "${download_urls[@]}"; do
    if [ ! "$file" ]; then
       file="$(echo "$url"|sed -e 's/.*\/main\/smud-cli\/\(.*\)/\1/g')"
    fi   
-   downloaded_file=$(basename $url)
+   downloaded_file="$(basename $url)"
    if [ "$file" ]; then
       printf "${gray}Download '$file' file: ${normal}\n"   
       # echo "Download:$url => $file"

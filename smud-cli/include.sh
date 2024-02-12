@@ -11,23 +11,23 @@ magenta_bold='\x1b[22;35m'
 cyan='\x1b[22;36m'
 gray='\x1b[1;90m'
 magenta='\033[38;5;53m'
-bold=$(tput bold)
+bold="$(tput bold)"
 
 
-# bold=$white
-normal=$(tput sgr0)
-reset=$normal
+# bold="$white"
+normal="$(tput sgr0)"
+reset="$normal"
 
 declare -A ARGS
 
 parse_arguments()
 {
-    local -n parse_arguments_args=$1
+    local -n parse_arguments_args="$1"
 
     shift
     if [ $# -gt 0 ];then
         has_args="true"
-        local str=$(echo " $@"|sed -e 's/--/-_sep_/g' |sed -e 's/ -/§/g')
+        local str="$(echo " $@"|sed -e 's/--/-_sep_/g' |sed -e 's/ -/§/g')"
         # echo "str: $str"
         IFS="§"; read -ra array <<< " $str";
         local c=$(echo "${array[0]}" | grep '-' -c)
@@ -36,7 +36,7 @@ parse_arguments()
             if [ $# -eq 0 ];then
                 return
             fi
-            local str=$(echo " $@"|sed -e 's/--/-_sep_/g' |sed -e 's/ -/§/g')
+            local str="$(echo " $@"|sed -e 's/--/-_sep_/g' |sed -e 's/ -/§/g')"
             # echo "str: $str"
             IFS="§"; read -ra array <<< " $str";
         fi
@@ -46,19 +46,19 @@ parse_arguments()
             if [ ! "$s" ] || [ "$s" = " " ]; then
                 continue
             fi
-            local s=$(echo "$s"|xargs -d ' '| tr -d '\n')
+            local s="$(echo "$s"|xargs -d ' '| tr -d '\n')"
             # echo "s: $s"
-            local s=$(echo "-$s" |sed -e 's/_sep_/-/g')
+            local s="$(echo "-$s" |sed -e 's/_sep_/-/g')"
             # echo "s: $s"
             IFS='='; read -ra arg <<< "$s"
-            local key=$(echo "${arg[0]}"|xargs -d ' '| tr -d '\n')
+            local key="$(echo "${arg[0]}"|xargs -d ' '| tr -d '\n')"
             local value="${arg[1]}"
             if [ ! "$value" ]; then
                 local c=$(echo "$s" | grep ' ' -c)
                 if [ $c -gt 0 ]; then
                     IFS=' ';read -ra arg <<< "$s"
-                    local key=$(echo "${arg[0]}")
-                    local value=$(echo "$s"|sed -e "s/$key //g"|xargs -d ' '| tr -d '\n')
+                    local key="$(echo "${arg[0]}")"
+                    local value="$(echo "$s"|sed -e "s/$key //g"|xargs -d ' '| tr -d '\n')"
                 fi
             fi
             local value="${value:-true}"
@@ -86,16 +86,16 @@ parse_arguments()
 
 get_arg()
 {
-    local -n value=$1
+    local -n value="$1"
     if [ "$4" ];then
-        local -n get_arg_args=$4
+        local -n get_arg_args="$4"
     fi
     # echo "keys: $2"
     IFS=","; read -ra keys <<< "$2";
     value=""
     for key in "${keys[@]}"
     do
-        key=$(echo "$key"|xargs -d ' '| tr -d '\n') || print_error $key
+        key="$(echo "$key"|xargs -d ' '| tr -d '\n')" || print_error $key
         # print_verbose "get_args: key='$key'"
         if [ ! "$value" ];then
             if [ ! "$4" ];then
@@ -181,15 +181,15 @@ print_not_silent()
 
 lower()
 {
-    local -n str=$1
-    str=$(echo "$str" | tr '[:upper:]' '[:lower:]')
+    local -n str="$1"
+    str="$(echo "$str" | tr '[:upper:]' '[:lower:]')"
 }
 
 ask()
 {
-    local -n answer=$1
-    local color=$2
-    local question=$3
+    local -n answer="$1"
+    local color="$2"
+    local question="$3"
 
     echo ""
     printf "$color$question $normal"
@@ -208,18 +208,18 @@ ask()
 
 progressbar__init()
 {
-    progressbar__start_time=$(date +"%Y-%m-%d %H:%M:%S")
+    progressbar__start_time="$(date +"%Y-%m-%d %H:%M:%S")"
     progressbar__last_drawn=0
     progressbar__enable_default_flag="true"
     progressbar__size=$1
     progressbar__enable_size=$2
-    progressbar__line_info_enabled=${3:-true}
+    progressbar__line_info_enabled="${3:-true}"
     if [ "$no_progress" ]; then
         progressbar__enable_default_flag=""
     fi
     progressbar__enabled=""
     if [ $progressbar__size -gt $progressbar__enable_size ]; then
-        progressbar__enabled=$progressbar__enable_default_flag
+        progressbar__enabled="$progressbar__enable_default_flag"
     fi
 
 }
@@ -261,7 +261,7 @@ progressbar__end()
     if [ "$progressbar__enabled" ]; then
         local msg=$progressbar__message
         if [ "$1" ]; then
-            msg=$1
+            msg="$1"
         fi
         progressbar__last_drawn=-5
         progressbar__increase $progressbar__size "$msg"
@@ -294,17 +294,17 @@ run_command()
     get_arg skip_error '--skip-error' '' run_command_args
 
     if [ "$command_from_var" ];then
-        local -n command=$command_from_var
+        local -n command="$command_from_var"
     else
         get_arg command '--command,--command,-c' '' run_command_args
     fi
 
 
     if [ "$return_in_var" ];then
-        local -n run_command_result=$return_in_var
+        local -n run_command_result="$return_in_var"
     fi
     if [ "$error_code" ];then
-        local -n run_command_error_code=$error_code
+        local -n run_command_error_code="$error_code"
     fi
 
     run_command_error_code=0
@@ -351,7 +351,7 @@ run_command()
 }
 first_param="$3"
 parse_arguments ARGS $@
-curr_dir=$(pwd)
+curr_dir="$(pwd)"
 get_arg upstream_url '--upstream-url,--upstream,--up-url,-up-url'
 get_arg source_branch '--source-branch,--source'
 get_arg configs '--configs,--settings,--show'
@@ -394,7 +394,7 @@ get_arg development '--development,-D,-DEV'
 get_arg external_test '--external-test,-ET'
 get_arg internal_test '--internal-test,-IT'
 get_arg production '--production,-PROD'
-grep=$(echo "$grep"| sed -e 's/true//g')
+grep="$(echo "$grep"| sed -e 's/true//g')"
 get_arg stage '--stage,-S' '**'
 
 if [ "$development" ]; then   
@@ -416,20 +416,20 @@ if [ "$production" ]; then
     stage="$stage production"
 fi
 stage="$(echo "$stage"|xargs|sed -e 's/ /,/g'|xargs)"
-selected_stage=$stage
+selected_stage="$stage"
 if [ "$selected_stage" = "**" ]; then
     selected_stage=""
 fi
 
-selected_product=$product
+selected_product="$product"
 if [ "$selected_product" = "**" ]; then
     selected_product=""
 fi
 
 if [ -d ".git" ]; then
     is_repo="true"
-    is_smud_gitops_repo=$(echo "$(pwd)"| grep "/SMUD-GitOps")
-    is_smud_cli_repo=$(echo "$(pwd)"| grep "/smud-cli")
+    is_smud_gitops_repo="$(echo "$(pwd)"| grep "/SMUD-GitOps")"
+    is_smud_cli_repo="$(echo "$(pwd)"| grep "/smud-cli")"
 fi
 
 is_smud_dev_repo="$is_smud_gitops_repo$is_smud_cli_repo"
@@ -447,7 +447,7 @@ fi
 print_verbose "can_list_direct=$can_list_direct, is_smud_gitops_repo=$is_smud_gitops_repo, filter_product_name=$filter_product_name, new=$new"
 
 if [ "$grep" ]; then
-    git_grep=$(echo "$grep"| sed -e 's/ /./g'| sed -e 's/"//g'| sed -e "s/'//g" )
+    git_grep="$(echo "$grep"| sed -e 's/ /./g'| sed -e 's/"//g'| sed -e "s/'//g" )"
     git_grep="--grep $git_grep"
 fi
 git_pretty_commit='--pretty=format:%H'
@@ -488,7 +488,7 @@ if [ "$has_args" ] && [ ! "$help" ] && [ "$is_repo" ]; then
 
     if [ ! "$to_commit" ] && [ ! "$is_smud_dev_repo" ];then
         if [ ! "$source_branch" ]; then
-            source_branch=$(git config --get source.$current_branch)
+            source_branch="$(git config --get source.$current_branch)"
         fi
         if [ ! "$source_branch" ]; then
             source_branch="upstream/$default_branch"
@@ -500,7 +500,7 @@ if [ "$has_args" ] && [ ! "$help" ] && [ "$is_repo" ]; then
     fi
     
     if [ "$from_commit$to_commit" ]; then
-        commit_range=$from_commit..$to_commit
+        commit_range="$from_commit..$to_commit"
     fi
     if [ "$from_date" ]; then
         date_range="--since $(echo "$from_date"| sed -e 's/ /./g')" 
@@ -509,7 +509,7 @@ if [ "$has_args" ] && [ ! "$help" ] && [ "$is_repo" ]; then
         date_range="$date_range --before $(echo "$to_date"| sed -e 's/ /./g')" 
     fi
     if [ "$version" ]; then
-        git_grep_version=-GchartVersion:.$version
+        git_grep_version="-GchartVersion:.$version"
         git_grep="$(echo "$git_grep $git_grep_version" | xargs)"
     fi
 fi
@@ -526,9 +526,9 @@ fi
 c=$(echo "$product" | grep ',' -c)
 c1=$(echo "$stage" | grep ',' -c)
 if [ ! $c -eq  0 ] || [ ! $c1 -eq  0 ]; then
-    stage=$(echo "$stage"| sed -e 's/ /,/g'|sed -e 's/ //g'| sed -e 's/,,/,/g')        
+    stage="$(echo "$stage"| sed -e 's/ /,/g'|sed -e 's/ //g'| sed -e 's/,,/,/g')"
     IFS=',';read -ra selected_stages <<< "$stage"
-    product=$(echo "$product"| sed -e 's/ //g'| sed -e 's/,,/,/g')    
+    product="$(echo "$product"| sed -e 's/ //g'| sed -e 's/,,/,/g')"
     IFS=',';read -ra selected_products <<< "$product"
     app_files_filter=""
     no_app_files_filter=""
@@ -587,7 +587,7 @@ git_range="$(echo "$commit_range $date_range"|xargs)"
 if [ "$git_range" ] && [ "$git_grep" ]; then
     git_range="$git_range $git_grep"
 fi
-# has_any_commits=$(git log ..5e21036a024abd6eb8d1aaa9ffe9f6c14687821c --max-count=1 --no-merges $git_pretty_commit -- $filter)
+# has_any_commits="$(git log ..5e21036a024abd6eb8d1aaa9ffe9f6c14687821c --max-count=1 --no-merges $git_pretty_commit -- $filter)"
 # echo "hit: $has_any_commits"
 # exit
 

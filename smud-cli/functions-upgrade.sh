@@ -78,7 +78,7 @@ upgrade()
     fi
 
     local context="products"
-    local upgrade_filter=$filter
+    local upgrade_filter="$filter"
     local yes_no="yes"
     if [ ! "$product" ]; then
         if [ ! "$silent" ]; then
@@ -86,7 +86,7 @@ upgrade()
             ask yes_no $yellow "Do you want to upgrade the GitOps-model (Yes/No)?"
         fi
         if [ "$yes_no" = "yes" ]; then
-            local upgrade_filter=$devops_model_filter
+            local upgrade_filter="$devops_model_filter"
             local context="GitOps-model files"
             print_gray "Swithced to '$context' context"
         else
@@ -147,7 +147,7 @@ upgrade()
         print_debug "$commits"
         # If there are any current unapplied changes, cherry pick will fail. Catch this.
         cherrypick_commits_command="git cherry-pick $commits $cherrypick_options"
-        run_command cherry-pick --command-var=cherrypick_commits_command --return-var=log --skip-error --error-code error_code --debug-title='Start cherry-pick' || error_message=$log
+        run_command cherry-pick --command-var=cherrypick_commits_command --return-var=log --skip-error --error-code error_code --debug-title='Start cherry-pick' || error_message="$log"
 
         # Check if cherry-pick in progress
         error_index="$(echo "$error_message" | grep "cherry-pick is already in progress" -c)"
@@ -155,7 +155,7 @@ upgrade()
             error_code=0
             error_message=""
             cherrypick_commits_command="git cherry-pick --continue $cherrypick__continue_options"
-            run_command cherry-pick --command-var=cherrypick_commits_command --return-var=log --error-code error_code --debug-title='Continue cherry-pick' || error_message=$log
+            run_command cherry-pick --command-var=cherrypick_commits_command --return-var=log --error-code error_code --debug-title='Continue cherry-pick' || error_message="$log"
         fi
 
         # Check if cherry-pick was resolved
@@ -164,7 +164,7 @@ upgrade()
             error_message=""
             error_code=0
             cherrypick_commits_command="git cherry-pick --skip $cherrypick_options"
-            run_command cherry-pick --command-var=cherrypick_commits_command --return-var=log --error-code error_code --debug-title='Skip cherry-pick' || error_message=$log
+            run_command cherry-pick --command-var=cherrypick_commits_command --return-var=log --error-code error_code --debug-title='Skip cherry-pick' || error_message="$log"
         fi
 
         # Loop until no conflicts
@@ -177,7 +177,7 @@ upgrade()
             fi
             #echo "$error_message"
             while [ "$errors_resolved" == "false" ]; do 
-                files_status=$(git status -s)
+                files_status="$(git status -s)"
 
                 declare -A status_map
 
@@ -186,7 +186,7 @@ upgrade()
                     # git diff  --pretty=format:''|sed -e 's/+/\n/g' -e 's/\r//g'|xargs
                     # echo "line:$line"
                     # Extract the file status
-                    status_code=$(echo "$line" | cut -c -2)
+                    status_code="$(echo "$line" | cut -c -2)"
                     # Extract the file name
                     file="$(git diff --pretty=format:''| grep "+ \|- \|++=="| sed -e 's/--- a\///g' -e 's/+++ b\///g' | sed -e 's/ +/+/g' -e 's/ -/-/g'|uniq)"
                     if [ ! "$file" ]; then
@@ -221,7 +221,7 @@ upgrade()
                 for status_code in "${!status_map[@]}"; do
                     filenames="${status_map[$status_code]}"
 
-                    description=$(get_status_description "$status_code")
+                    description="$(get_status_description "$status_code")"
                     printf "\t${red}Status: ${gray}$description\n${normal}"
                     IFS=$'\n';read -rd '' -a filenames_array <<< "$filenames"
                     label=""
@@ -276,11 +276,11 @@ upgrade()
                 errors_resolved="false"
 
                 if [ "$continue_or_abort" = "s" ]; then
-                    log=$(git cherry-pick --skip $cherrypick_options > /dev/null 2>&1 )
+                    log="$(git cherry-pick --skip $cherrypick_options > /dev/null 2>&1)"
                     errors_resolved="true"
                 else    
                     cherrypick_commits_command="git cherry-pick --continue $cherrypick__continue_options"
-                    run_command cherry-pick --command-var=cherrypick_commits_command --return-var=log --error-code error_code --debug-title='Continue cherry-pick' || error_message=$log
+                    run_command cherry-pick --command-var=cherrypick_commits_command --return-var=log --error-code error_code --debug-title='Continue cherry-pick' || error_message="$log"
                     if [ $error_code -eq 0 ]; then
                         errors_resolved="true"
                         break
@@ -312,18 +312,18 @@ upgrade()
             if [ ! "$silent" ] && [ ! "$remote" ]; then
                 printf "${yellow}Do you want to push applied changes to remote branch $remote (Yes/No)? ${normal}"
                 read yes_no
-                yes_no=$(echo "$yes_no" | tr '[:upper:]' '[:lower:]')
+                yes_no="$(echo "$yes_no" | tr '[:upper:]' '[:lower:]')"
                 printf "${gray}You selected: $yes_no${normal}\n"
             fi    
             if [ "$yes_no" = "yes" ] || [ "$yes_no" = "y" ]; then
                 if [ ! "$remote" ] || [ "$remote" = "true" ]; then
-                    default_branch=${default_branch:-main}
-                    remote=$default_branch
+                    default_branch="${default_branch:-main}"
+                    remote="$default_branch"
                     if [ ! "$silent" ]; then
                         printf "${yellow}Select the remote branch (default to '$remote'): ${normal}"
                         read remote
                         if [ ! "$remote" ]; then
-                            remote=$default_branch
+                            remote="$default_branch"
                         fi
                         
                     fi    
@@ -342,12 +342,12 @@ upgrade()
             if [ ! "$silent" ]; then
                 printf "${yellow}Do you want to abort the upgrade-operation (Yes/No)? ${normal}"
                 read yes_no
-                yes_no=$(echo "$yes_no" | tr '[:upper:]' '[:lower:]')
+                yes_no="$(echo "$yes_no" | tr '[:upper:]' '[:lower:]')"
                 printf "${gray}You selected: $yes_no${normal}\n"
 
                 if [ "$yes_no" = "yes" ] || [ "$yes_no" = "y" ]; then
                     printf "${gray}Running: git cherry-pick --abort${normal}"
-                    log=$(git cherry-pick --abort)
+                    log="$(git cherry-pick --abort)"
                     if [ $? -eq 0 ];then
                         echo "The upgrade-operation aborted!"
                     else    
@@ -424,8 +424,8 @@ reset_to_commit()
 
 correlate_against_already_cherripicked()
 {
-    local -n revision_list=$1
-    local -n already_cherry_picked_commits_counter=$2
+    local -n revision_list="$1"
+    local -n already_cherry_picked_commits_counter="$2"
     already_cherry_picked_commits_counter=0
     rev_list_checked=()
     local has_cherrypicked_commits=""
@@ -465,8 +465,8 @@ correlate_against_already_cherripicked()
 }
 ensure_git_cred_is_configured()
 {
-    local user_name=$(git config --get user.name)
-    local user_email=$(git config --get user.email)
+    local user_name="$(git config --get user.name)"
+    local user_email="$(git config --get user.email)"
 
     if [ ! "$user_name" ] || [ ! "$user_email" ]; then
         if [ ! "$user_name" ]; then
@@ -499,9 +499,9 @@ ensure_git_cred_is_configured()
             fi
         fi
         
-        local dummy=$(git config --unset user.name)
-        local dummy=$(git config --unset user.email)
-        local dummy=$(git config --add user.name "$user_name_ask" )
-        local dummy=$(git config --add user.email "$user_email_ask" )
+        local dummy="$(git config --unset user.name)"
+        local dummy="$(git config --unset user.email)"
+        local dummy="$(git config --add user.name "$user_name_ask" )"
+        local dummy="$(git config --add user.email "$user_email_ask" )"
     fi
 }

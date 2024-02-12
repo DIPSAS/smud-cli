@@ -7,7 +7,7 @@
 . $(dirname "$0")/functions-gitops.sh
 . $(dirname "$0")/functions-init.sh
 
-command=$1
+command="$1"
 print_verbose "\n${bold}command: $command\n" 
 
 if [ ! "$command" ] ; then

@@ -33,12 +33,12 @@ show_valid_commands()
 
 get_changelog_file()
 {
-    BASEDIR=$(dirname "$0")
-    file=$BASEDIR/CHANGELOG.md
+    BASEDIR="$(dirname "$0")"
+    file="$BASEDIR/CHANGELOG.md"
 
     if [ ! -f $file ]; then
-        BASEDIR=$(dirname "$BASEDIR")
-        file=$BASEDIR/CHANGELOG.md
+        BASEDIR="$(dirname "$BASEDIR")"
+        file="$BASEDIR/CHANGELOG.md"
     fi
     if [ -f $file ]; then
         echo "$file"    
@@ -126,7 +126,7 @@ update_cli()
 
 show_date_help()
 {
-    s=$1
+    s="$1"
     echo "      A specific date:"
     echo "        --$s='<DD.MM.YYYY HH:MM:SS +TZ>'"
     echo "        --$s='13.11.2023 08:00:00 +0000'"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 HOME_DIR="~"
-HOME_ABS_DIR=$(dirname `readlink -f ~/.bashrc`)
+HOME_ABS_DIR="$(dirname `readlink -f ~/.bashrc`)"
 DEST_DIR="$HOME_ABS_DIR/smud-cli"
 
 # echo "HOME_DIR: $HOME_DIR"
@@ -33,7 +33,7 @@ if [ ! -d $DEST_DIR ]; then
     mkdir $DEST_DIR
 fi
 
-BASEDIR=$(dirname "$0")
+BASEDIR="$(dirname "$0")"
 
 if [ ! "$DEST_DIR" = "$BASEDIR" ]; then
     # echo "BASEDIR: $BASEDIR"

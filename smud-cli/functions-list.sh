@@ -207,7 +207,7 @@ product_infos__find_latest_products_with_version()
             file="products/$stage_product_name/app.yaml"
         fi
         
-        # echo "$i line=$line, file=$file -- product_name=$product_name, product_stage=$product_stage, stage_product_name=$stage_product_name"
+        # echo "$i line='$line', file='$file' -- product_name='$product_name', product_stage='$product_stage', stage_product_name='$stage_product_name'"
         progressbar__increase $i "${#product_infos[@]} $progress_title found"
         found_version=""
         if [ $cChartVersion -gt 0 ]; then
@@ -230,7 +230,7 @@ product_infos__find_latest_products_with_version()
         fi
 
         if [ "$option" ]; then
-            product_info=${product_infos[${stage_product_name}]}
+            product_info="${product_infos[${stage_product_name}]}"
         fi
 
         if [ "$option" = "skip-add-new-product" ] && [ ! "$product_info" ]; then
@@ -238,12 +238,12 @@ product_infos__find_latest_products_with_version()
         fi
 
         if [ ! "$option" = "installed" ]; then
-            product_latest_version=$found_version
+            product_latest_version="$found_version"
             if [ "$option" ]; then
                 product_info__get_current_version product_info current_version
             fi
         else
-            current_version=$found_version
+            current_version="$found_version"
             product_info__get_latest_version product_info product_latest_version
         fi
 
@@ -252,7 +252,7 @@ product_infos__find_latest_products_with_version()
             add_product="false"
         fi
 
-        # echo "*** option: $option :: $i: file=$file, stage_product_name=$stage_product_name, found_version=$found_version,  product_latest_version=$product_latest_version, current_version=$current_version, add_product: $add_product"
+        # echo "*** option: '$option' :: $i: file='$file', stage_product_name='$stage_product_name', found_version='$found_version',  product_latest_version='$product_latest_version', current_version='$current_version', add_product: '$add_product'"
 
         append_product "$file" "A" "$add_product"
         stage_product_name_tmp="$stage_product_name"
@@ -273,19 +273,19 @@ product_infos__find_latest_products_with_version()
             if [ $c -gt 0 ]; then
                 file="${line:0:$c}"
                 local dependency="${line:$((c+1))}"
-                local dependency=$(echo "$dependency"|sed -e 's/\r//g'|xargs)
+                local dependency="$(echo "$dependency"|sed -e 's/\r//g'|xargs)"
                 
                 if [ "$dependency" ] && [ "${dependency:0:1}" = "-" ]; then
                     local dependency="$( echo "${dependency:1}"|sed -e 's/\r//g'|xargs)"
                     product_name="$(echo "$file"  | cut -d '/' -f 2)"
                     product_stage="$(echo "$file" | cut -d '/' -f 3)"
                     local stage_product_name="$product_name/$product_stage"
-                    product_info=${product_infos[$stage_product_name]}
+                    product_info="${product_infos[$stage_product_name]}"
                     if [ "$product_info" ];then
                         # echo "stage_product_name: $stage_product_name, dependency: $dependency"
                         append_product_depenencies "$dependency" "$stage_product_name"
                         # echo "depedencies_return: $depedencies_return"
-                        product_info=${product_infos[$stage_product_name]}
+                        product_info="${product_infos[$stage_product_name]}"
                         complete_version
                         # echo "xxx: ${product_infos[$stage_product_name]}"
                     fi
@@ -334,11 +334,11 @@ product_infos__find_latest_products_with_files()
     for file in "${changed_files[@]}"
     do
         i=$((i+1))
-        # echo "$i: file=$file"
+        # echo "$i: file='$file'"
         # exit
         # continue
 
-        product_yaml=$(echo "$file" | grep product.yaml -c)
+        product_yaml="$(echo "$file" | grep product.yaml -c)"
 
         product_name_files="$(echo "$file" | cut -d '/' -f 2)"
         if [ $product_yaml -eq 0 ]; then
@@ -354,14 +354,14 @@ product_infos__find_latest_products_with_files()
         fi
 
         stage_product_name="$product_name/$product_stage"
-        product_info=${product_infos[${stage_product_name}]}
+        product_info="${product_infos[${stage_product_name}]}"
         if [ ! "$product_info" ]; then
-            # echo "** find-files : $i: file=$file, stage_product_name=$stage_product_name, NO PRODUCT_INFO"     
+            # echo "** find-files : $i: file='$file', stage_product_name='$stage_product_name', NO PRODUCT_INFO"     
             continue
         fi
 
         append_product "$file" "A" "false" is_file_appended
-        # echo "** find-files : $i: file=$file, stage_product_name=$stage_product_name, product_latest_version=$product_latest_version, current_version=$current_version, is_file_appended: $is_file_appended"
+        # echo "** find-files : $i: file='$file', stage_product_name='$stage_product_name', product_latest_version='$product_latest_version', current_version='$current_version', is_file_appended='$is_file_appended'"
         complete_version
 
         progressbar__increase $i "${#product_infos[@]} products updated with files"
@@ -372,18 +372,18 @@ product_infos__find_latest_products_with_files()
         for product_stage in "${product_stages[@]}"
         do
             stage_product_name="$product_name_files/$product_stage"
-            product_info=${product_infos[${stage_product_name}]}
+            product_info="${product_infos[${stage_product_name}]}"
             if [ ! "$product_info" ]; then
-                # echo "** find-files(product.yaml) : file=$file, stage_product_name=$stage_product_name, NO PRODUCT_INFO"     
+                # echo "** find-files(product.yaml) : file='$file', stage_product_name='$stage_product_name', NO PRODUCT_INFO"     
                 continue
             fi
 
             file="products/$stage_product_name/product.yaml"
-            saved_product_name=$product_name_files
+            saved_product_name="$product_name_files"
             append_product "$file" "A" "false" is_file_appended_stage
-            # echo "** find-files(product.yaml) : file=$file, stage_product_name=$stage_product_name, is_file_appended: $is_file_appended_stage"
+            # echo "** find-files(product.yaml) : file='$file', stage_product_name='$stage_product_name', is_file_appended='$is_file_appended_stage'"
             complete_version
-            product_name_files=$saved_product_name
+            product_name_files="$saved_product_name"
         done
     done
 
@@ -438,11 +438,11 @@ product_infos__print()
         if [ "$prev" = "external-test" ] && [ "$product_stage" = "internal-test" ]; then
             ordered_product_stages[$iPrev]="$product_stage"
             ordered_product_stages[$i]="$prev"
-            # echo "set [$iPrev]=$product_stage and [$i]=$prev -- ${ordered_product_stages[@]}"
+            # echo "set [$iPrev]=$product_stage and [$i]='$prev' -- ${ordered_product_stages[@]}"
         else
-            ordered_product_stages[$i]=$product_stage
+            ordered_product_stages[$i]="$product_stage"
         fi
-        prev=$product_stage
+        prev="$product_stage"
         iPrev=$i
         i=$((i+1))
     done
@@ -484,7 +484,7 @@ product_infos__print()
             commit=""    
             files=""
             local product_dependencies=""
-            product_info=${product_infos[${stage_product_name}]}
+            product_info="${product_infos[${stage_product_name}]}"
             if [ ! "$product_info" ]; then
                 # echo "Not found : $stage_product_name"
                 continue
@@ -613,7 +613,7 @@ product_infos__print()
                 printed_product_header="true"
             fi
 
-            print_product=$stage_product_name
+            print_product="$stage_product_name"
 
             product_path="products/$product_name_list"
             stage_filter=":$product_path/$product_stage/** $product_path/product.yaml"
@@ -701,7 +701,7 @@ get_next_stage_version()
 {
     local    getnextstageversion__stage_product_name="$1"
     local -n getnextstageversion__next_version="$2"
-    local next_product_info=${product_infos[${getnextstageversion__stage_product_name}]}
+    local next_product_info="${product_infos[${getnextstageversion__stage_product_name}]}"
     get_current_version next_product_info getnextstageversion__stage_product_name getnextstageversion__next_version
     # echo "get_next_stage_version($getnextstageversion__next_version) - [$1,$2]"
 }
@@ -740,9 +740,9 @@ get_tags()
 }
 
 get_product_info() {
-    local -n getproductinfo__product_info=$1
+    local -n getproductinfo__product_info="$1"
     if [ "$2" ]; then
-        local -n getproductinfo__stage_product_name=$2
+        local -n getproductinfo__stage_product_name="$2"
     else
         local getproductinfo__stage_product_name="$stage_product_name"
     fi
@@ -754,7 +754,7 @@ get_product_info() {
 
 create_product_info()
 {
-    local -n createproductinfo__local_product_info=$1
+    local -n createproductinfo__local_product_info="$1"
     createproductinfo__local_product_info="$product_latest_date|$current_version|$product_latest_version|$product_latest_commit|$product_info_files|$product_info_dependencies"
     # echo "create_product_info()...[$product_info_dependencies]"
 }
@@ -762,31 +762,30 @@ create_product_info()
 
 set_product_info()
 {   if [ "$1" ]; then
-        local -n setproductinfo__product_info=$1
+        local -n setproductinfo__product_info="$1"
     else
-        local setproductinfo__product_info=$product_info
+        local setproductinfo__product_info="$product_info"
     fi
     if [ "$2" ]; then
-        local -n setproductinfo__stage_product_name=$2
+        local -n setproductinfo__stage_product_name="$2"
     else
-        local setproductinfo__stage_product_name=$stage_product_name
+        local setproductinfo__stage_product_name="$stage_product_name"
     fi
 
     if [ ! "$setproductinfo__product_info" ] && [ "$setproductinfo__stage_product_name" ]; then    
         get_product_info setproductinfo__product_info setproductinfo__stage_product_name
         if [ ! "$setproductinfo__product_info" ]; then
-            setproductinfo__product_info=${product_infos[${setproductinfo__stage_product_name}]}
+            setproductinfo__product_info="${product_infos[${setproductinfo__stage_product_name}]}"
         fi
     fi
 
     if [ "$product_info" ] && [ "$stage_product_name" ]; then    
-        product_infos[$stage_product_name]=$product_info
+        product_infos[$stage_product_name]="$product_info"
     fi
 }
 
 get_current_version()
 {
-    getcurrentversion__product_info=$1
     if [ "$1" ]; then
         local -n getcurrentversion__product_info="$1"
     else
@@ -840,8 +839,8 @@ get_current_version()
 
 get_depedencies()
 {
-    local -n getdepedencies__app_yaml_content=$1
-    local -n getdepedencies__depedencies=$2
+    local -n getdepedencies__app_yaml_content="$1"
+    local -n getdepedencies__depedencies="$2"
     local getdepedencies__depedencies_arr=()
     local getdepedencies__depedencies="$(echo "$getdepedencies__app_yaml_content" | grep 'dependencies:' -A 500| sed -e 's/dependencies://g')"
     
@@ -877,14 +876,14 @@ get_latest_version()
     if [ ! "$product_latest_version" ] && [ "$stage_product_name" ] && [ ! "$is_smud_dev_repo" ]; then
         # echo "stage_product_name: $stage_product_name , file: $file"
         if [ "$1" ]; then
-            local -n getlatestversion__latest_version=$1
+            local -n getlatestversion__latest_version="$1"
         else
             getlatestversion__latest_version=""
         fi
         get_product_info product_info stage_product_name
         if [ "$product_info" ]; then
             product_info__get_latest_version product_info getlatestversion__latest_version
-            local product_latest_commit_local=$product_latest_commit
+            local product_latest_commit_local="$product_latest_commit"
             if [ ! "$getlatestversion__latest_version" ]; then
                 if [ ! "$file" ]; then
                     file="products/$stage_product_name/app.yaml"
@@ -917,7 +916,7 @@ get_latest_version()
                             run_command --latest_version --command-var=latest_version_command --return-var=getlatestversion__latest_version --skip-error --debug-title='Find latest versions from conent'
                             # echo "getlatestversion__latest_version(0): '$getlatestversion__latest_version'"
                             getlatestversion__latest_version="$(echo "$getlatestversion__latest_version" | cut -d ':' -f 4 | sed -e 's/"//g'|xargs)"
-                            product_latest_version=$getlatestversion__latest_version
+                            product_latest_version="$getlatestversion__latest_version"
                             # echo "getlatestversion__latest_version(1): '$getlatestversion__latest_version'"
                             set_product_info
                         } || {
@@ -928,7 +927,7 @@ get_latest_version()
             fi
         fi
     fi
-    product_latest_version=$getlatestversion__latest_version
+    product_latest_version="$getlatestversion__latest_version"
     if [ ! "$1" ]; then
         echo "$product_latest_version"
     fi
@@ -937,12 +936,12 @@ get_latest_version()
 append_product_files() 
 {
     if [ "$3" ];then
-        local -n appendproductfiles__return_value=$3
+        local -n appendproductfiles__return_value="$3"
     fi
     appendproductfiles__return_value="false"
     file_to_append="$1"
     if [ ! "$file_to_append" ]; then
-        file_to_append=$file
+        file_to_append="$file"
     fi
     if [ ! "$file_to_append" ] || [ ! "$stage_product_name" ]; then
         return 
@@ -950,7 +949,7 @@ append_product_files()
 
     file_state_to_append="$2"
     if [ ! "$file_state_to_append" ]; then
-        file_state_to_append=$file_state
+        file_state_to_append="$file_state"
     fi
 
     # echo "file_to_append: $file_to_append ($file_state_to_append) => [$stage_product_name]: '$product_info'"
@@ -958,7 +957,7 @@ append_product_files()
     local files__product_info_files=""
     if [ "$files__product_info" ]; then
         product_info__get_latest_files files__product_info files__product_info_files
-        old=$files__product_info_files
+        old="$files__product_info_files"
 
         if [ "$files__product_info_files" ]; then
             c=$(echo "$files__product_info_files" | grep "$file_to_append" -c)
@@ -973,7 +972,7 @@ append_product_files()
                 # echo "replace_regex: $replace_regex"
                 changed_product_info_files="$(echo "$files__product_info_files" | sed -e $replace_regex | xargs)"
                 # echo "files__product_info_files: [$files__product_info_files], changed_product_info_files=[$changed_product_info_files]"
-                files__product_info_files=$changed_product_info_files
+                files__product_info_files="$changed_product_info_files"
 
             fi
         elif [ ! "$file_state_to_append" = "D" ]; then
@@ -1008,14 +1007,14 @@ append_product_depenencies()
     local dependency_to_append="$1"
     local depenency_stage_product_name="$2"
     if [ "$3" ];then
-        local -n appendproductdepenencies__return_value=$3
+        local -n appendproductdepenencies__return_value="$3"
     fi
     appendproductdepenencies__return_value="false"
     local depenency__product_info="${product_infos[$depenency_stage_product_name]}"
     local depenency__product_info_dependencies=""
     if [ "$depenency__product_info" ]; then
         product_info__get_dependencies depenency__product_info depenency__product_info_dependencies
-        old=$depenency__product_info_dependencies
+        old="$depenency__product_info_dependencies"
 
         # echo "*** depenency__product_info($depenency_stage_product_name): $depenency__product_info -- depenencies: $depenency__product_info_dependencies"
 
@@ -1042,7 +1041,7 @@ append_product_depenencies()
             create_product_info depenency__product_info
             # echo "### HIT: $product_info_dependencies" 
             # echo "¤¤¤ depenencies($depenency_stage_product_name): $depenency__product_info" 
-            product_infos[$depenency_stage_product_name]=$depenency__product_info  
+            product_infos[$depenency_stage_product_name]="$depenency__product_info"
             appendproductdepenencies__return_value="true"
         fi
     else
@@ -1054,20 +1053,20 @@ append_product_depenencies()
 append_product()
 {
     if [ "$4" ];then
-        local -n appendproduct__return_value=$4
+        local -n appendproduct__return_value="$4"
     fi
 
     appendproduct__return_value="false"
     local product_info_created=0
     if [ ! "$product_info" ] && [ "$stage_product_name" ]; then
-        product_info=${product_infos[${stage_product_name}]}
+        product_info="${product_infos[${stage_product_name}]}"
         if [ ! "$product_info" ];then
             if [ "$3" = "false" ];then
                 return 
             fi    
             product_info_created=1
             create_product_info product_info
-            product_infos[$stage_product_name]=$product_info        
+            product_infos[$stage_product_name]="$product_info"
             appendproduct__return_value="true"
         fi
     fi
@@ -1084,7 +1083,7 @@ append_product()
 
     file_state_to_append="$2"
     if [ ! "$file_state_to_append" ]; then
-        file_state_to_append=$file_state
+        file_state_to_append="$file_state"
     fi
 
     if [ ! "$file_state_to_append" ]; then
@@ -1097,7 +1096,7 @@ append_product()
     # exit
 
     if [ "$appendproduct__return_value" = "false" ]; then
-        appendproduct__return_value=$append_product_appendproductfiles__return_value
+        appendproduct__return_value="$append_product_appendproductfiles__return_value"
     fi
 }
 
@@ -1121,7 +1120,7 @@ complete_version()
         fi
         # echo "complete_version:"
         # echo "current_version: $current_version"
-        product_infos[$stage_product_name]=$product_info        
+        product_infos[$stage_product_name]="$product_info"
         if [ "$1" ]; then
             echo "complete_version(): product_name: '$product_name', current_version: '$current_version' , product_info_files:$product_info_files, product_info: '$product_info' }"
         fi
@@ -1147,8 +1146,8 @@ product_info__get_field()
 {
     # [1:$product_latest_date|2:$current_version|3:$product_latest_version|4:$product_latest_commit|5:$product_info_files]
 
-    local -n local_field_product_info=$1
-    local -n local_field_value=$2
+    local -n local_field_product_info="$1"
+    local -n local_field_value="$2"
     local local_field_index=$3
 
     get_product_info local_field_product_info
@@ -1161,8 +1160,8 @@ product_info__get_field()
 product_info__get_latest_commit_date()
 {
     # [product_latest_date||||]
-    local -n local_product_info=$1
-    local -n local_value=$2
+    local -n local_product_info="$1"
+    local -n local_value="$2"
     
     product_info__get_field local_product_info local_value 1
 }
@@ -1171,8 +1170,8 @@ product_info__get_latest_commit_date()
 product_info__get_current_version()
 {
     # [|$current_version|||]
-    local -n local_product_info=$1
-    local -n local_value=$2
+    local -n local_product_info="$1"
+    local -n local_value="$2"
 
     product_info__get_field local_product_info local_value 2
 }
@@ -1180,8 +1179,8 @@ product_info__get_current_version()
 product_info__get_latest_version()
 {
     # [||$product_latest_version||]
-    local -n local_product_info=$1
-    local -n local_value=$2
+    local -n local_product_info="$1"
+    local -n local_value="$2"
 
     product_info__get_field local_product_info local_value 3
 }
@@ -1189,8 +1188,8 @@ product_info__get_latest_version()
 product_info__get_latest_commit()
 {
     # [|||$product_latest_commit|]
-    local -n local_product_info=$1
-    local -n local_value=$2
+    local -n local_product_info="$1"
+    local -n local_value="$2"
 
     product_info__get_field local_product_info local_value 4
 }
@@ -1198,8 +1197,8 @@ product_info__get_latest_commit()
 product_info__get_latest_files()
 {
     # [||||$product_info_files]
-    local -n local_product_info=$1
-    local -n local_value=$2
+    local -n local_product_info="$1"
+    local -n local_value="$2"
 
     product_info__get_field local_product_info local_value 5
 }
@@ -1207,8 +1206,8 @@ product_info__get_latest_files()
 product_info__get_dependencies()
 {
     # [||||$product_info_files]
-    local -n local_product_info=$1
-    local -n local_value=$2
+    local -n local_product_info="$1"
+    local -n local_value="$2"
 
     product_info__get_field local_product_info local_value 6
 }

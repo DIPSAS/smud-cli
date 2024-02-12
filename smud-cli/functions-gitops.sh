@@ -61,7 +61,7 @@ gitops_model__show_changelog_file()
 {
     from="$1"
     if [ "$from" = "git" ]; then
-        revisions=$git_range
+        revisions="$git_range"
         if [ ! "$revisions" ]; then
             echo "No revisions available to fetch GitOps-model Changelog!"
             return
@@ -78,8 +78,8 @@ gitops_model__show_changelog_file()
         }
     else
         local context="Current"
-        BASEDIR=$(dirname "$0")
-        file=$BASEDIR/CHANGELOG.md
+        BASEDIR="$(dirname "$0")"
+        file="$BASEDIR/CHANGELOG.md"
         if [ -f $file ]; then
             show_changelog_command="cat $file"
         fi
