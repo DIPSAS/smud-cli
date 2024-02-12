@@ -135,34 +135,12 @@ upgrade()
     if [ ! "$silent" ]; then
       ask yes_no "$yellow" "Do you want to continue upgrading the selected $context (Yes/No)?"
     fi  
-    local cherrypick_options="--keep-redundant-commits --allow-empty -x"
+    local cherrypick__continue_options="--keep-redundant-commits --allow-empty"
+    local cherrypick_options="$cherrypick__continue_options -x"
     local upgrade_error_code=0
     if [ "$yes_no" = "yes" ]; then
 
-        local user_name=$(git config --get user.name)
-        local user_email=$(git config --get user.email)
-
-        if [ ! "$user_name" ] || [ ! "$user_email" ]; then
-            local remote_origin_url="$(git config --get remote.origin.url| sed -e 's/https:\/\//')"    
-            if [ ! "$user_name" ]; then
-                local user_name="githubservicesmud"
-            fi
-
-            if [ ! "$user_email" ]; then
-                local user_email="githubservicesmud@dips.no"
-            fi
-            local user_name_ask="$user_name"
-            local user_email_ask="$user_email"
-            if [ ! "$silent" ]; then
-                ask user_name_ask $blue "Please configure git user.name: Push ENTER to use '$user_name_ask': "
-                ask user_email_ask $blue "Please configure git user.email: Push ENTER to use '$user_email_ask': "
-            fi
-            
-            local dummy=$(git config --unset user.name)
-            local dummy=$(git config --unset user.email)
-            local dummy=$(git config --add user.name "$user_name_ask" )
-            local dummy=$(git config --add user.email "$user_email_ask" )
-        fi
+        ensure_git_cred_is_configured
 
         commits="${rev_list[@]}"
         print_gray "Running: git cherry-pick [commits]...\n"   
@@ -176,7 +154,7 @@ upgrade()
         if [ $error_index -gt 0 ]; then
             error_code=0
             error_message=""
-            cherrypick_commits_command="git cherry-pick --continue $cherrypick_options"
+            cherrypick_commits_command="git cherry-pick --continue $cherrypick__continue_options"
             run_command cherry-pick --command-var=cherrypick_commits_command --return-var=log --error-code error_code --debug-title='Continue cherry-pick' || error_message=$log
         fi
 
@@ -194,7 +172,9 @@ upgrade()
         # If the conflict is UD (delete happened in remote) resolve it automatically using "merge-strategy theirs"
         if [ "$error_message" ]; then
             errors_resolved="false"
-            printf "${red}Cherry-pick ran into errors that must be resolved manually.\n${normal}"
+            if [ ! "$silent" ]; then
+                printf "${red}Cherry-pick ran into errors that must be resolved manually.\n${normal}"
+            fi
             #echo "$error_message"
             while [ "$errors_resolved" == "false" ]; do 
                 files_status=$(git status -s)
@@ -202,35 +182,69 @@ upgrade()
                 declare -A status_map
 
                 while IFS= read -r line; do
+                    
+                    # git diff  --pretty=format:''|sed -e 's/+/\n/g' -e 's/\r//g'|xargs
+                    # echo "line:$line"
                     # Extract the file status
                     status_code=$(echo "$line" | cut -c -2)
                     # Extract the file name
-                    file=$(echo "$line" | cut -c -4)
+                    file="$(git diff --pretty=format:''| grep "+ \|- \|++=="| sed -e 's/--- a\///g' -e 's/+++ b\///g' | sed -e 's/ +/+/g' -e 's/ -/-/g'|uniq)"
+                    if [ ! "$file" ]; then
+                        file="$(echo "$line" | cut -d ' ' -f 4|xargs)"
+                        if [ ! "$file" ]; then
+                            file="$(echo "$line" | cut -d ' ' -f 3|xargs)"
+                        fi
+                        if [ ! "$file" ]; then
+                            file="$(echo "$line" | cut -d ' ' -f 2|xargs)"
+                        fi
+                    fi
+                    # echo "status_code:$status_code"
+                    # echo "file:$file"
                     # Add the file to the map where the status is the key
                      if [[ -n "${status_map["$status_code"]}" ]]; then
                         # If it exists, append the current file to the existing array
                         status_map["$status_code"]+=" $file"
                     else
                         # If it doesn't exist, create a new array with the current file
-                        status_map["$status_code"]=$file
+                        status_map["$status_code"]="$file"
                     fi
                 done < <(git status -s)
 
                 merge_conflict_status_codes="DD AU UD UA DU AA UU"
                 untracked_status_code="??"
                 if [ "$silent" ]; then
-                    printf "${red}There is a merge conflict!"
+                    printf "${red}There is a merge conflict!\n${normal}"
                 else
                     printf "${red}The follwing contains changes that must be resolved:\n${normal}" 
                 fi
 
                 for status_code in "${!status_map[@]}"; do
                     filenames="${status_map[$status_code]}"
+
                     description=$(get_status_description "$status_code")
                     printf "\t${red}Status: ${gray}$description\n${normal}"
-                    IFS=' ' read -ra filenames_array <<< "$filenames"
+                    IFS=$'\n';read -rd '' -a filenames_array <<< "$filenames"
+                    label=""
                     for filename in "${filenames_array[@]}"; do
-                        printf "\t* ${gray}$filename\n${normal}"
+                        filename="$(echo "$filename"| xargs)"
+                        tab="\t*"
+                        c=$(echo "$filename"|grep ":" -c)
+                        if [ "${filename:0:1}" = "+" ] || [ "${filename:0:1}" = "-" ] || [ $c -gt 0 ]; then
+                            tab="\t\t"
+                            if [ ! "$label" ]; then
+                                label="\t  Diffs:"
+                                printf "$gray$label\n${normal}"    
+                            elif [ "${filename:0:4}" = "++==" ]; then
+                                printf "$tab $gray$filename \n${normal}"
+                                color="$green"
+                                continue
+                            fi
+                            
+                        else
+                            color="$red"
+                            label=""
+                        fi
+                        printf "$tab $color$filename\n${normal}"
                     done 
                 done
 
@@ -265,7 +279,7 @@ upgrade()
                     log=$(git cherry-pick --skip $cherrypick_options > /dev/null 2>&1 )
                     errors_resolved="true"
                 else    
-                    cherrypick_commits_command="git cherry-pick --continue $cherrypick_options"
+                    cherrypick_commits_command="git cherry-pick --continue $cherrypick__continue_options"
                     run_command cherry-pick --command-var=cherrypick_commits_command --return-var=log --error-code error_code --debug-title='Continue cherry-pick' || error_message=$log
                     if [ $error_code -eq 0 ]; then
                         errors_resolved="true"
@@ -448,4 +462,46 @@ correlate_against_already_cherripicked()
         fi
     fi
 
+}
+ensure_git_cred_is_configured()
+{
+    local user_name=$(git config --get user.name)
+    local user_email=$(git config --get user.email)
+
+    if [ ! "$user_name" ] || [ ! "$user_email" ]; then
+        if [ ! "$user_name" ]; then
+            local user_token="$(git config --get remote.origin.url | sed -e 's/https:\/\///g' | cut -d '@' -f 1)"    
+            local c="$(echo "$user_token"|grep ':' -c)"
+            
+            if [ $c -gt 0 ]; then
+                local user_name="$(echo "$user_token" | cut -d ':' -f 1)"
+            fi
+        fi
+
+        if [ ! "$user_name" ]; then
+            local user_name="githubservicesmud"
+        fi
+
+        if [ ! "$user_email" ]; then
+            local user_email="$user_name@dips.no"
+        fi
+
+        local user_name_ask="$user_name"
+        local user_email_ask="$user_email"
+        if [ ! "$silent" ]; then
+            ask user_name_ask $blue "Please configure git user.name (Push ENTER to use '$user_name_ask'): "
+            ask user_email_ask $blue "Please configure git user.email (Push ENTER to use '$user_email_ask'): "
+            if [ ! "$user_name_ask" ]; then
+                local user_name_ask="$user_name"
+            fi
+            if [ ! "$user_email_ask" ]; then
+                local user_email_ask="$user_email"
+            fi
+        fi
+        
+        local dummy=$(git config --unset user.name)
+        local dummy=$(git config --unset user.email)
+        local dummy=$(git config --add user.name "$user_name_ask" )
+        local dummy=$(git config --add user.email "$user_email_ask" )
+    fi
 }
