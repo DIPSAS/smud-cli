@@ -154,7 +154,7 @@ product_infos__find_latest_products_with_version()
         product_names=()
     fi
 
-    app_dependecy_command="git --no-pager grep -B 0 -A 500 'dependencies:' $commit_filter -- :$app_files_filter|sed -e 's/.*:dependencies://g'|uniq"
+    app_dependecy_command="git --no-pager grep -B 0 -A 500 'dependencies:' $to_commit -- :$app_files_filter|sed -e 's/.*:dependencies://g'|uniq"
     run_command --files --command-var=app_dependecy_command --return-var=dependencies_files --skip-error --debug-title='Find all dependencies app files'
     if [ "$dependencies_files" ]; then
         IFS=$'\n';read -rd '' -a dependencies_files <<< "$dependencies_files"
@@ -273,10 +273,10 @@ product_infos__find_latest_products_with_version()
             if [ $c -gt 0 ]; then
                 file="${line:0:$c}"
                 local dependency="${line:$((c+1))}"
-                local dependency="$(echo "$dependency"|sed -e 's/\r//g'|xargs)"
-                
-                if [ "$dependency" ] && [ "${dependency:0:1}" = "-" ]; then
-                    local dependency="$( echo "${dependency:1}"|sed -e 's/\r//g'|xargs)"
+                local dependency="$(echo "$dependency"|sed -e 's/\r//g' -e 's/ -//g'|xargs)"
+                # echo "dependency: '$dependency' '${dependency:0:3}'"
+                if [ "$dependency" ] && [ "${dependency:0:3}" = "id:" ]; then
+                    local dependency="$( echo "${dependency:4}"|sed -e 's/\r//g'|xargs)"
                     product_name="$(echo "$file"  | cut -d '/' -f 2)"
                     product_stage="$(echo "$file" | cut -d '/' -f 3)"
                     local stage_product_name="$product_name/$product_stage"
