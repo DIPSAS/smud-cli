@@ -428,8 +428,20 @@ fi
 
 if [ -d ".git" ]; then
     is_repo="true"
-    is_smud_gitops_repo="$(echo "$(pwd)"| grep "/SMUD-GitOps")"
-    is_smud_cli_repo="$(echo "$(pwd)"| grep "/smud-cli")"
+    is_smud_cli_repo=""
+    is_smud_gitops_repo=""
+    
+    cGitOps=$(expr match "$(pwd)" '.*/SMUD-GitOps$')
+    cSmudCli=$(expr match "$(pwd)" '.*/smud-cli$')
+    if [ $cGitOps -gt 0 ]; then
+        if [ "$(git config --get remote.origin.url|grep 'dev.azure.com/dips/DIPS/_git')" ]; then
+            is_smud_gitops_repo="SMUD-GitOps"
+        fi
+    elif [ $cSmudCli -gt 0 ]; then
+        is_smud_cli_repo="smud-cli"
+    fi
+    # echo "is_smud_gitops_repo: '$is_smud_gitops_repo'"
+    # echo "is_smud_cli_repo: '$is_smud_cli_repo'"
 fi
 
 is_smud_dev_repo="$is_smud_gitops_repo$is_smud_cli_repo"
