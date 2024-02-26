@@ -201,7 +201,14 @@ upgrade()
                     # Extract the file status
                     status_code="$(echo "$line" | cut -c -2)"
                     # Extract the file name
-                    file="$(git diff --pretty=format:''| grep -e '+ ' -e '- ' -e '++==' | sed -e 's/--- a\///g' -e 's/+++ b\///g' | sed -e 's/ +/+/g' -e 's/ -/-/g'|uniq)"
+                    diff_command="git diff --pretty=format:''| grep -e '>>' -e '<<' -e '+ ' -e '- ' -e '++==' | sed -e 's/--- a\///g' -e 's/+++ b\///g' | sed -e 's/ +/+/g' -e 's/ -/-/g'|uniq"
+                    run_command diff-command --command-var=diff_command --return-var=file --debug-title='Find Git Differences: '
+
+                    if [ "$verbose" ]; then
+                        print_verbose "Git Differences: $file"
+                        git diff  --pretty=format:''|sed -e 's/+/\n/g' -e 's/\r//g'|xargs
+                    fi
+
                     if [ ! "$file" ]; then
                         file="$(echo "$line" | cut -d ' ' -f 4|xargs)"
                         if [ ! "$file" ]; then

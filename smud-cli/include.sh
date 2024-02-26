@@ -43,6 +43,7 @@ parse_arguments()
                 
         for s in "${array[@]}"
         do
+            # echo "0:s: $s"
             if [ ! "$s" ] || [ "$s" = " " ]; then
                 continue
             fi
@@ -50,9 +51,21 @@ parse_arguments()
             # echo "s: $s"
             local s="$(echo "-$s" |sed -e 's/_sep_/-/g')"
             # echo "s: $s"
+
             IFS='='; read -ra arg <<< "$s"
-            local key="$(echo "${arg[0]}"|xargs -d ' '| tr -d '\n')"
+            if [ ! "${arg[1]}" ];then
+                IFS=' '; read -ra arg <<< "$s"
+            fi
+            # echo "%%%  ${arg[@]}"
+
+            local key="${arg[0]}"
+            # echo "key: $key"
+            if [ ! "$key" = "-n" ]; then
+                local key="$(echo "${arg[0]}"|xargs -d ' '| tr -d '\n')"
+            fi
             local value="${arg[1]}"
+            # echo "key: $key, value: $value"
+
             if [ ! "$value" ]; then
                 local c=$(echo "$s" | grep ' ' -c)
                 if [ $c -gt 0 ]; then
@@ -62,11 +75,14 @@ parse_arguments()
                 fi
             fi
             local value="${value:-true}"
-
             if [ "$key" ]; then
-                key="$(echo "$key"|sed -e "s/---/--/g"|xargs -d ' '| tr -d '\n')"
-                local value=$(echo "$value"|xargs -d ' '| tr -d '\n')
-                parse_arguments_args["$key"]="$value"
+                if [ "$key" != "-n" ]; then
+                    key="$(echo "$key"|sed -e "s/---/--/g"|xargs -d ' '| tr -d '\n')"
+                fi
+                if [ "$key" != "-" ]; then
+                    local value=$(echo "$value"|xargs -d ' '| tr -d '\n')
+                    parse_arguments_args["$key"]="$value"
+                fi
             fi
         done
     fi
@@ -95,8 +111,10 @@ get_arg()
     value=""
     for key in "${keys[@]}"
     do
-        key="$(echo "$key"|xargs -d ' '| tr -d '\n')" || print_error $key
-        # print_verbose "get_args: key='$key'"
+        if [ ! "$key" = "-n" ]; then
+            key="$(echo "$key"|xargs -d ' '| tr -d '\n')" || print_error $key
+        fi
+        print_verbose "get_args: key='$key'"
         if [ ! "$value" ];then
             if [ ! "$4" ];then
                 value="${ARGS[$key]}"
@@ -293,6 +311,7 @@ run_command()
     get_arg command_from_var '--command-var,--command-from-var,--command-in-var' '' run_command_args
     get_arg debug_title '--debug-title,-dt' '' run_command_args
     get_arg return_in_var '--return,--return-var,--return-in-var' '' run_command_args
+    get_arg force_debug_title '--force-debug-title,-dt' '' run_command_args
     get_arg error_code '--error-code' '' run_command_args
     get_arg skip_error '--skip-error' '' run_command_args
 
@@ -324,7 +343,11 @@ run_command()
         print_error "Missing 'command' parameter!"
         return 1
     fi
-    if [ "$debug" ] && [ "$return_in_var" ]; then
+    if [ "$debug" ] && ([ "$return_in_var" ] || [ "$force_debug_title" ]) ; then
+        if [ "$force_debug_title" ]; then
+            local debug_title=$force_debug_title
+        fi
+
         if [ ! "$debug_title" ]; then
             local debug_title="Running command"
         fi
@@ -352,10 +375,12 @@ run_command()
         echo "$run_command_result"
     fi
 }
+
 first_param="$3"
 parse_arguments ARGS $@
 curr_dir="$(pwd)"
 get_arg verbose '--verbose'
+
 get_arg debug '--debug' "$verbose"
 print_verbose "**** START: include.sh"
 get_arg upstream_url '--upstream-url,--upstream,--up-url,-up-url'
@@ -391,6 +416,7 @@ get_arg no_progress '--no-progress,--skip-progress' "$silent"
 get_arg skip_push '--skip-push,--no-push'
 get_arg skip_files '--skip-files,--no-files'
 get_arg show_files '--show-files,--files'
+
 if [ "$skip_files" ]; then
     show_files="" 
 fi
@@ -420,6 +446,7 @@ if [ "$production" ]; then
     if [ "$stage" = "**" ]; then stage="";fi
     stage="$stage production"
 fi
+
 stage="$(echo "$stage"|xargs|sed -e 's/ /,/g'|xargs)"
 selected_stage="$stage"
 if [ "$selected_stage" = "**" ]; then
@@ -449,6 +476,7 @@ if [ -d ".git" ]; then
     # echo "is_smud_cli_repo: '$is_smud_cli_repo'"
 fi
 
+
 is_smud_dev_repo="$is_smud_gitops_repo$is_smud_cli_repo"
 
 filter_product_name="[$product] "
@@ -467,6 +495,7 @@ if [ "$grep" ]; then
     git_grep="$(echo "$grep"| sed -e 's/ /./g'| sed -e 's/"//g'| sed -e "s/'//g" )"
     git_grep="--grep $git_grep"
 fi
+
 git_pretty_commit='--pretty=format:%H'
 git_pretty_commit_date='--pretty=format:%H|%ad'
 current_branch="$default_branch"
@@ -551,7 +580,6 @@ if [ "$installed" ] && [ ! "$product" ]; then
     product="**"
 fi
 
-
 c=$(echo "$product" | grep ',' -c)
 c1=$(echo "$stage" | grep ',' -c)
 if [ ! $c -eq  0 ] || [ ! $c1 -eq  0 ]; then
@@ -584,14 +612,22 @@ if [ ! $c -eq  0 ] || [ ! $c1 -eq  0 ]; then
         done
     done
 else    
-    app_files_filter="products/$product/$stage/app.yaml"
-    no_app_files_filter="^products/$product/$stage/app.yaml"
-    filter="products/$product/$stage/** products/$product/product.yaml"
+    search_product="${product:-**}"
+    app_files_filter="products/$search_product/$stage/app.yaml"
+    no_app_files_filter="^products/$search_product/$stage/app.yaml"
+    filter="products/$search_product/$stage/** products/$search_product/product.yaml"
 fi
 filter_=$filter
 filter=":$filter"
 devops_model_filter="GETTING_STARTED.md CHANGELOG.md applicationsets-staged/* environments/* gitops-engine/* repositories/*"
 diff_filter=''
+
+namespace_filter="-A"
+get_arg namespace '--namespace,-N,-n'
+
+if [ "$namespace" ]; then
+    namespace_filter="-n $namespace"
+fi
 
 if [ "$debug" ];then
     print_debug "filter: $filter"

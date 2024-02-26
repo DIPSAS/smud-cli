@@ -8,6 +8,7 @@ show_valid_commands()
     echo "  update-cli    Download and update the smud CLI. Required ${bold}curl${normal} installed on the computer" 
     echo "  version       Show the version-log of smud CLI" 
     echo "  list          List products ready for installation or current products installed."
+    echo "  conflict(s)   Scan and list conflicts in yaml-files."
 
     if [ ! "$is_smud_dev_repo" ]; then
         echo "  upgrade       Upgrade one or more productst to the repository."
