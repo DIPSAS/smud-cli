@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+
+print_verbose "**** START: install-cli.sh"
+
 HOME_DIR="~"
 HOME_ABS_DIR="$(dirname `readlink -f ~/.bashrc`)"
 DEST_DIR="$HOME_ABS_DIR/smud-cli"
@@ -53,3 +56,5 @@ if [ $HOMEDRIVE ] && [ -f $HOME_ABS_DIR/.bash_profile ]; then
 elif [ -f $HOME_ABS_DIR/.bashrc ]; then
     . ~/.bashrc
 fi
+
+print_verbose "**** END: install-cli.sh"

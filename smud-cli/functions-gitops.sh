@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+print_verbose "**** START: functions-gitops.sh"
+
 gitops_model__show_changes() 
 {
     print_color "$white" "List changes in Gitops model:\n"
@@ -103,3 +105,5 @@ gitops_model__show_changelog_file()
     fi
     echo ""
 }
+
+print_verbose "**** END: functions-gitops.sh"

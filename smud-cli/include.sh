@@ -114,6 +114,9 @@ get_arg()
     if [ ! "$value" ] && [ "$3" ]; then
         value="$3"
     fi
+    if [ "$value" ] && [ "$verbose" ]; then
+        print_verbose "¤¤¤ ${keys[@]} ==> value: '$value'"
+    fi
 }
 
 fix_print_message()
@@ -352,9 +355,13 @@ run_command()
 first_param="$3"
 parse_arguments ARGS $@
 curr_dir="$(pwd)"
+get_arg verbose '--verbose'
+get_arg debug '--debug' "$verbose"
+print_verbose "**** START: include.sh"
 get_arg upstream_url '--upstream-url,--upstream,--up-url,-up-url'
 get_arg source_branch '--source-branch,--source'
-get_arg configs '--configs,--settings,--show'
+get_arg default_branch '--default-branch'
+get_arg configs '--configs,--config,--settings,--setting,--show'
 get_arg skip_auto_update '--skip-auto-update,--skip-auto'
 get_arg examples '--examples,--ex,-ex'
 get_arg help '--help,-?,-h' "$examples"
@@ -369,8 +376,6 @@ get_arg changed '--changed,--changes'
 get_arg installed '--installed,-I'
 get_arg hide_title '--hide-title'
 get_arg silent '--silent'
-get_arg verbose '--verbose'
-get_arg debug '--debug' "$verbose"
 get_arg product '--products,--product,-P,--P'
 get_arg all '--all,-A'
 get_arg version '--version,-V'
@@ -390,10 +395,10 @@ if [ "$skip_files" ]; then
     show_files="" 
 fi
 
-get_arg development '--development,-D,-DEV'
-get_arg external_test '--external-test,-ET'
-get_arg internal_test '--internal-test,-IT'
-get_arg production '--production,-PROD'
+get_arg development '--development,-D,-DEV,--DEV'
+get_arg external_test '--external-test,-ET,--ET'
+get_arg internal_test '--internal-test,-IT,--IT'
+get_arg production '--production,-PROD,--PROD'
 grep="$(echo "$grep"| sed -e 's/true//g')"
 get_arg stage '--stage,-S' '**'
 
@@ -464,20 +469,32 @@ if [ "$grep" ]; then
 fi
 git_pretty_commit='--pretty=format:%H'
 git_pretty_commit_date='--pretty=format:%H|%ad'
-default_branch="main"
 current_branch="$default_branch"
 if [ "$has_args" ] && [ ! "$help" ] && [ "$is_repo" ]; then
-    default_branch="$(git config --list | grep -E 'branch.(main|master).remote' | sed -e 's/branch\.//g' -e 's/\.remote//g' -e 's/=origin//g')"
     if [ ! "$default_branch" ]; then
-        default_branch="$(git config --get init.defaultbranch)"
-    fi
-    if [ ! "$default_branch" ]; then
-        default_branch="main"
-        can_do_git=""
-    else
-        can_do_git="$(git branch --list $default_branch)"
-    fi
+        default_branch="$(git config --get default.branch)"
+        if [ ! "$default_branch" ]; then
+            default_branch="$(git config --list | grep -E 'branch.(main|master).remote' | sed -e 's/branch\.//g' -e 's/\.remote//g' -e 's/=origin//g')"
+            if [ ! "$default_branch" ]; then
+                default_branch="$(git config --get init.defaultbranch)"
+            fi
 
+            if [ ! "$default_branch" ]; then
+                default_branch="main"
+            fi
+
+            can_do_git="$(git branch --list $default_branch)"
+            if [ "$default_branch" ]; then
+                local dummy="$(git config --add default.branch $default_branch)"
+            fi
+        fi
+    else
+        old="$(git config --get default.branch)"
+        if [ "$old" ]; then
+            dummy="$(git config --unset default.branch)"
+       fi
+       dummy="$(git config --add default.branch $default_branch)"
+    fi
     current_branch="$(git branch --show-current)"
     if [ ! "$current_branch" ]; then
         current_branch="$default_branch"
@@ -488,7 +505,7 @@ if [ "$has_args" ] && [ ! "$help" ] && [ "$is_repo" ]; then
     fi
 
 
-    if [ ! "$from_commit" ] && [ ! "$from_date" ] && [ "$can_do_git" ] ; then
+    if [ ! "$from_commit" ] && [ ! "$from_date" ] && [ "$current_branch" ] ; then
         from_commit_command="git rev-list $current_branch -1"
         {
             run_command from-commit --command-var from_commit_command --return-var from_commit --skip-error --debug-title "from-commit-command"
@@ -602,4 +619,5 @@ fi
 # has_any_commits="$(git log ..5e21036a024abd6eb8d1aaa9ffe9f6c14687821c --max-count=1 --no-merges $git_pretty_commit -- $filter)"
 # echo "hit: $has_any_commits"
 # exit
+print_verbose "**** END: include.sh"
 

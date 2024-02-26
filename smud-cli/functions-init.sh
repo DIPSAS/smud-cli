@@ -115,18 +115,25 @@ init()
 {
     if [ "$help" ]; then
         func="${1:-init}"
-        echo "${bold}smud $func${normal}: Initializes local repository and sets upstream, origin remotes and source-branch"
-        printf "Upstream: \n"
-        printf "  With Only ${green}$func${normal}, Upstream '$default_upstream' will be configured if not configured yet. When configured the upstream will be fetched. \n"
-        printf "  With ${green}$func ${bold}<value>${normal}, Upstream '<value>' will be configured before upstream is fetched. \n"
-        printf "  With ${green}$func ${bold}--upstream-url <value>${normal}, Upstream '<value>' will be configured before upstream is fetched. \n"
-        printf "  With ${green}$func ${bold}-${normal}, Upstream will be removed. \n"
-        printf "source-branch: \n"
-        printf "  With Only ${green}$func${normal}, source-branch will be configured to 'upstream/$default_branch' . \n"
-        printf "  With ${green}$func ${bold}${green}--source-branch${normal} <value>${normal}, source-branch '<value>' will be configured. \n"
-        printf "Show configs: \n"
-        printf "  ${green}$func${normal} ${green}--configs${normal} will list all repository config key/values. ${green}--show${normal} or ${green}--settings${normal} can be used as well. \n"
-        printf "  ${green}$func${normal} ${green}--show${normal} or ${green}--settings${normal} can be used as well. \n"
+        c=$(expr match "$func" '--') 
+        if [  $c -gt 0 ]; then
+            func="init"
+        fi
+        printf "${bold}smud $func${normal}: Initializes local repository and sets ${blue}upstream, origin remotes, source-branch${normal} and ${blue}default-branch${normal}\n"
+        printf "${blue}upstream${normal}: \n"
+        printf "  With Only ${green}$func${normal}, ${blue}upstream${normal} '${bold}$default_upstream${normal}' will be configured if not configured yet. When configured the upstream will be fetched. \n"
+        printf "  With ${green}$func ${bold}<value>${normal}, ${blue}upstream${normal} '${bold}<value>${normal}' will be configured before upstream is fetched. \n"
+        printf "  With ${green}$func ${bold}${blue}${bold}--upstream-url <value>${normal}, ${blue}upstream${normal} '${bold}<value>${normal}' will be configured before upstream is fetched. \n"
+        printf "  With ${green}$func ${blue}${bold}-${normal}, ${blue}upstream${normal} will be removed. \n"
+        printf "${blue}source-branch:${normal} \n"
+        printf "  With Only ${green}$func${normal}, ${blue}source-branch${normal} will be configured to '${bold}upstream/$default_branch${normal}' . \n"
+        printf "  With ${green}$func ${blue}${bold}--source-branch <value>${normal}, ${bold}source-branch '<value>'${normal} will be configured. \n"
+        printf "${blue}default-branch:${normal} \n"
+        printf "  With Only ${green}$func${normal}, ${blue}default-branch${normal} will be configured to '${bold}main${normal}' . \n"
+        printf "  With ${green}$func ${blue}${bold}--default-branch <value>${normal}${normal}, ${bold}default-branch '<value>'${normal} will be configured. \n"
+        printf "Show ${blue}configs:${normal} \n"
+        printf "  ${green}$func${normal} ${blue}--configs${normal} will list all repository config key/values. ${blue}--show${normal} or ${blue}--settings${normal} can be used as well. \n"
+        printf "  ${green}$func${normal} ${blue}--show${normal} or ${blue}--settings${normal} can be used as well. \n"
         return
     fi
     

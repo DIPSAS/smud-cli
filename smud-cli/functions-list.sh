@@ -1,4 +1,5 @@
 declare -A product_infos
+print_verbose "**** START: functions-list.sh"
 
 list()
 {
@@ -134,11 +135,13 @@ product_infos__find_latest_products_with_version()
             return
         fi
         pos_colon=0
-        app_files_command="git --no-pager diff $commit_filter --no-merges --pretty=format:'' -- :$filter|grep '+++ .*app.yaml\|+++ .*values.yaml\|+  chartVersion'| sed -e 's/+//g' -e 's/b\///g'|cut -d '#' -f 1"
+        app_files_command="git --no-pager diff $commit_filter --no-merges --pretty=format:'' -- :$filter|grep -e '+++ .*app.yaml' -e '+++ .*values.yaml' -e '+  chartVersion' | sed -e 's/+//g' -e 's/b\///g'|cut -d '#' -f 1"
     fi
     
     {
+        print_verbose "**** Before app_files_command"
         run_command --files --command-var=app_files_command --return-var=changed_files --debug-title='Find all changed app files'
+        print_verbose "**** After app_files_command"
     } || {
         return
     }
@@ -338,7 +341,7 @@ product_infos__find_latest_products_with_files()
         # exit
         # continue
 
-        product_yaml="$(echo "$file" | grep product.yaml -c)"
+        product_yaml="$(echo "$file" | grep 'product.yaml' -c)"
 
         product_name_files="$(echo "$file" | cut -d '/' -f 2)"
         if [ $product_yaml -eq 0 ]; then
@@ -1212,5 +1215,5 @@ product_info__get_dependencies()
     product_info__get_field local_product_info local_value 6
 }
 
-
+print_verbose "**** END: functions-list.sh"
 

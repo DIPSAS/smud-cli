@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+print_verbose "**** START: functions.sh"
+
 show_valid_commands() 
 {
     echo "Commands:"
@@ -8,7 +10,7 @@ show_valid_commands()
     echo "  list          List products ready for installation or current products installed."
 
     if [ ! "$is_smud_dev_repo" ]; then
-        echo "  apply         Apply one or more productst to the repository."
+        echo "  upgrade       Upgrade one or more productst to the repository."
         echo "  set-upstream  Set upstream. If not specfied upstream-url, the https://github.com/DIPSAS/DIPS-GitOps-Template.git will be configured."
         echo "  upstream      Fetch upstream. If upstream-url is not set, the https://github.com/DIPSAS/DIPS-GitOps-Template.git will be configured before upstream is fetched."
         echo "  init          Same as upstream"
@@ -19,11 +21,11 @@ show_valid_commands()
         echo " > smud init --help"
         echo "   smud upstream --help"
         echo " > smud list --help"
-        echo " > smud apply --help"
+        echo " > smud upgrade --help"
         echo " > smud list --examples"
     else
         printf "${gray}Unavaible commands:${normal}\n"
-        printf "  ${gray}apply         Apply one or more productst to the repository.${normal}\n"
+        printf "  ${gray}upgrade       Upgrade one or more productst to the repository.${normal}\n"
         printf "  ${gray}set-upstream  Set upstream. If not specfied upstream-url, the https://github.com/DIPSAS/DIPS-GitOps-Template.git will be configured.\n"
         printf "  ${gray}upstream      Fetch upstream. If upstream-url is not set, the https://github.com/DIPSAS/DIPS-GitOps-Template.git will be configured before upstream is fetched. ${normal}\n"
         printf "  ${gray}init          Same as upstream${normal}\n"
@@ -134,3 +136,5 @@ show_date_help()
     echo "        --$s=today|tomorrow|yesterday"
     echo "        --$s='1 week ago|5 days ago|1 year ago'"
 }
+
+print_verbose "**** END: functions.sh"

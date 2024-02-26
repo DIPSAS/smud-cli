@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-. $(dirname "$0")/install-cli.sh
 . $(dirname "$0")/include.sh "$@"
+print_verbose "**** START: smud.sh"
+. $(dirname "$0")/install-cli.sh
 . $(dirname "$0")/functions.sh
 . $(dirname "$0")/functions-list.sh
 . $(dirname "$0")/functions-upgrade.sh
@@ -25,3 +26,5 @@ else
 
     esac    
 fi
+
+print_verbose "**** END: smud.sh"

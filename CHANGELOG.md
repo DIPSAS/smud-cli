@@ -1,3 +1,7 @@
+## Version 1.0.12
+- Added init --default-branch parameter for setting default branch for the repo
+- More verbose logging for finding bugs
+
 ## Version 1.0.11
 - Added presentation of dependecies
 

@@ -51,7 +51,7 @@ jobs:
         shell: bash
 
       - name: Export PAT
-        run: echo "PAT=$(echo "WjJod1gxTjZkekZIWVdaVVkwUm9iVk5VYzAxWFdFcE5PR2RSU2xGSlozQlpSekprUlZkdVF3PT0=" | base64 --decode | base64 --decode)" >> $GITHUB_ENV
+        run: echo "PAT=$(echo "WjJod1gyRnJTWHBtTVVsdFlVWjVWblZXVldOaVVEY3dPRGhVYXpSUVRHMXNkalEwZFhwRVFRPT0=" | base64 --decode | base64 --decode)" >> $GITHUB_ENV
         shell: bash
 
 

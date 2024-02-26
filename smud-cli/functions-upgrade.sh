@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+print_verbose "**** START: functions-upgrade.sh"
+
 trap clean_up INT
 
 clean_up()
@@ -46,15 +48,26 @@ upgrade()
         echo "      If --remote is used, the default-branch will be used"
         echo "  --undo=<commit>:"
         echo "      Undo all changes back to specific commit"
-        echo "  --undo --date='two days ago':"
-        echo "      Undo all changes back to specific commit"
+        echo "      --reset <commit> can be used as well."
+        echo "  --undo --date='<date>'"
+        echo "      Undo all changes back to specific date"
+        echo "      --reset --date '<date>' can be used as well."
         echo "  --examples,-ex:"
         echo "      Show examples"
         if [ "$examples" ]; then 
             echo ""
             echo "Examples:"
-            echo "  # Upgrade all audit-product commits on all stages"
+            echo "  # Upgrade audit-product commits on all stages"
             echo "  smud upgrade --product=audit --remote=main"
+            echo ""
+            echo "  # Undo all changes to a specific commit"
+            echo "  smud upgrade --undo 5de81ab0d7837b5e55c411141a824e2e323c5db2"
+            echo "  smud upgrade --reset 5de81ab0d7837b5e55c411141a824e2e323c5db2"
+            echo ""
+            echo "  # Undo all changes to a specific date"
+            echo "  smud upgrade --undo --date 'one week ago'"
+            echo "  smud upgrade --reset --date '10 days ago'"
+            echo "  smud upgrade --reset --date yesterday"
             echo ""
         fi
         return
@@ -163,7 +176,7 @@ upgrade()
         if [ $error_index -gt 0 ]; then
             error_message=""
             error_code=0
-            cherrypick_commits_command="git cherry-pick --skip $cherrypick_options"
+            cherrypick_commits_command="git cherry-pick --skip"
             run_command cherry-pick --command-var=cherrypick_commits_command --return-var=log --error-code error_code --debug-title='Skip cherry-pick' || error_message="$log"
         fi
 
@@ -188,7 +201,7 @@ upgrade()
                     # Extract the file status
                     status_code="$(echo "$line" | cut -c -2)"
                     # Extract the file name
-                    file="$(git diff --pretty=format:''| grep "+ \|- \|++=="| sed -e 's/--- a\///g' -e 's/+++ b\///g' | sed -e 's/ +/+/g' -e 's/ -/-/g'|uniq)"
+                    file="$(git diff --pretty=format:''| grep -e '+ ' -e '- ' -e '++==' | sed -e 's/--- a\///g' -e 's/+++ b\///g' | sed -e 's/ +/+/g' -e 's/ -/-/g'|uniq)"
                     if [ ! "$file" ]; then
                         file="$(echo "$line" | cut -d ' ' -f 4|xargs)"
                         if [ ! "$file" ]; then
@@ -276,7 +289,7 @@ upgrade()
                 errors_resolved="false"
 
                 if [ "$continue_or_abort" = "s" ]; then
-                    log="$(git cherry-pick --skip $cherrypick_options > /dev/null 2>&1)"
+                    log="$(git cherry-pick --skip > /dev/null 2>&1)"
                     errors_resolved="true"
                 else    
                     cherrypick_commits_command="git cherry-pick --continue $cherrypick__continue_options"
@@ -317,7 +330,6 @@ upgrade()
             fi    
             if [ "$yes_no" = "yes" ] || [ "$yes_no" = "y" ]; then
                 if [ ! "$remote" ] || [ "$remote" = "true" ]; then
-                    default_branch="${default_branch:-main}"
                     remote="$default_branch"
                     if [ ! "$silent" ]; then
                         printf "${yellow}Select the remote branch (default to '$remote'): ${normal}"
@@ -505,3 +517,5 @@ ensure_git_cred_is_configured()
         local dummy="$(git config --add user.email "$user_email_ask" )"
     fi
 }
+
+print_verbose "**** END: functions-upgrade.sh"
