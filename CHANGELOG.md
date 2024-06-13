@@ -1,3 +1,7 @@
+## Version 1.0.15
+- Improved upgrade-cli
+- Refactored include.sh into smud-main.sh and include.sh
+
 ## Version 1.0.14
 - Improved argument handling
 - Improved array iteration

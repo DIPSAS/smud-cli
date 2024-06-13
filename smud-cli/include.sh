@@ -1,30 +1,33 @@
 #!/usr/bin/env bash
 
-white='\033[1;37m' 
-magenta='\x1b[1;m'
-thin_gray='\x1b[22;30m'
-red='\x1b[22;31m'
-green='\x1b[22;32m'
-yellow='\x1b[22;33m'
-blue='\x1b[22;34m'
-magenta_bold='\x1b[22;35m'
-cyan='\x1b[22;36m'
-gray='\x1b[1;90m'
-magenta='\033[38;5;53m'
-bold="$(tput bold)"
+include_main()
+{
+    print_verbose "**** START: include.sh"
+    include_loaded="true"
+    white='\033[1;37m' 
+    magenta='\x1b[1;m'
+    thin_gray='\x1b[22;30m'
+    red='\x1b[22;31m'
+    green='\x1b[22;32m'
+    yellow='\x1b[22;33m'
+    blue='\x1b[22;34m'
+    magenta_bold='\x1b[22;35m'
+    cyan='\x1b[22;36m'
+    gray='\x1b[1;90m'
+    magenta='\033[38;5;53m'
+    bold="$(tput bold)"
 
-IFS=$'\n'
+    IFS=$'\n'
 
-# bold="$white"
-normal="$(tput sgr0)"
-reset="$normal"
+    # bold="$white"
+    normal="$(tput sgr0)"
+    reset="$normal"
 
-p_0="$(echo _0| sed -e 's/_/$/g')"
-p_1="$(echo _1| sed -e 's/_/$/g')"
-p_2="$(echo _2| sed -e 's/_/$/g')"
-
-
-declare -A ARGS
+    p_0="$(echo _0| sed -e 's/_/$/g')"
+    p_1="$(echo _1| sed -e 's/_/$/g')"
+    p_2="$(echo _2| sed -e 's/_/$/g')"
+    print_verbose "**** END: include.sh"
+}
 
 exit_if_is_not_a_git_repository() 
 {
@@ -149,7 +152,7 @@ parse_arguments()
                     old_value=${parse_arguments_args["$key"]}
                     if [ "$old_value" != "$value" ]; then
                         if [ "$old_value" ] && [ "$value" != "true" ]; then
-                            if [ "$value" ]; then
+                            if [ ! "$argument_single_mode" ] && [ "$value" ]; then
                                 value="$old_value,$value"
                             else
                                 value="$old_value"
@@ -209,7 +212,7 @@ get_arg()
             key_value="${get_arg_args[$key]}"
         fi
         if [ "$key_value" ]; then
-            if [ "$value" ] && [ "$value" != "true" ];then
+            if [ ! "$argument_single_mode" ] && [ "$value" ] && [ "$value" != "true" ];then
                 value="$value,$key_value"
             else
                 value="$key_value"
@@ -317,12 +320,26 @@ ask()
     local color="$2"
     local question="$3"
     local skip_newline="$4"
-    if [ ! "$skip_newline" ]; then
+    local default="$5"
+    if [ ! "$silent" ] && [ "$skip_newline" != "true" ]; then
         echo ""
     fi
+    if [ ! "$silent" ]; then
+        if [ "$default" ]; then
+            answer=$default
+            if [ "$1" = "yes_no" ]; then
+                if [ "$default" = "yes" ] || [ "$default" = "y" ] || [ "$default" = "ja" ] || [ "$default" = "j" ]; then        
+                    default="Yes"
+                elif [ "$answer" = "no" ] || [ "$answer" = "n" ] || [ "$answer" = "nei" ]; then
+                    default="No"
+                fi
+                question=$(sed -e "s/No/No -- Push ENTER to use '$default'/g" <<< "$question")
 
-    printf "$color$question $normal"
-    read  answer
+            fi
+        fi
+        printf "$color$question $normal"
+        read  answer
+    fi
     lower answer
     if [ "$1" = "yes_no" ]; then
         if [ "$answer" = "yes" ] || [ "$answer" = "y" ] || [ "$answer" = "ja" ] || [ "$answer" = "j" ]; then
@@ -331,7 +348,14 @@ ask()
             answer="no"
         fi
     fi
-    print_debug "You selected: $answer"
+    if [ ! "$answer" ] && [ "$default" ]; then
+        lower default
+        answer=$default
+    fi
+
+    if [ ! "$silent" ]; then
+        print_debug "You selected: $answer"
+    fi
 }
 
 
@@ -414,25 +438,39 @@ progressbar__end()
 run_command()
 {
     declare -A run_command_args
+    local command=""
+    local command_from_var=""
+    local return_in_var=""
+    local debug_title=""
+    local force_debug_title=""
+    local error_code=""
+    local skip_error=""
+    local skip_shell=""
+    local return_array=""
+    argument_single_mode="true"
     parse_arguments run_command_args "$@"
     get_arg command_from_var '--command-var,--command-from-var,--command-in-var' '' run_command_args false
-    get_arg debug_title '--debug-title,-dt' '' run_command_args false
     get_arg return_in_var '--return-in-var,--return-var,--return' '' run_command_args false
+    get_arg debug_title '--debug-title,-dt' '' run_command_args false
     get_arg force_debug_title '--force-debug-title,-dt' '' run_command_args false
     get_arg error_code '--error-code' '' run_command_args false
-    get_arg skip_error '--skip-error' '' run_command_args false
+    get_arg skip_error '--skip-error,--ignore-error' '' run_command_args false
     get_arg skip_shell '--skip-shell' '' run_command_args false
     get_arg return_array '--return-array,--array' '' run_command_args false
+    argument_single_mode=""
 
     if [ "$command_from_var" ];then
         local -n command="$command_from_var"
     else
-        get_arg command '--command,--command,-c' '' run_command_args false
+        command=""
+        get_arg command '--command,-c' '' run_command_args false
     fi
 
 
     if [ "$return_in_var" ];then
         local -n run_command_result="$return_in_var"
+    else
+        local run_command_result=""
     fi
     if [ "$error_code" ];then
         local -n run_command_error_code="$error_code"
@@ -574,6 +612,50 @@ setup__product_filters()
     fi
 }
 
+git__setup_source_config()
+{
+    local local_source_branch=$1
+    
+    if [ "$is_repo" ]; then
+        if [ ! "$local_source_branch" ]; then
+            local_source_branch=$source_branch
+        fi
+        current_branch_escaped=$(sed -e 's/\//.f./g' -e 's/\\/.b./g' <<< "source.$current_branch" )
+
+        if [ ! "$local_source_branch" ]; then
+            if [ "$current_branch" ]; then    
+                local_source_branch="$(git config --get $current_branch_escaped 2>/dev/null)"
+            fi
+        fi
+        
+        if [ ! "$local_source_branch" ]; then
+            local_source_branch="upstream/$default_branch"
+        fi
+        
+        old=""
+        if [ "$current_branch" ]; then    
+            old="$(git config --get $current_branch_escaped 2>/dev/null)"
+        fi
+        
+        if [ ! "$old" = "$local_source_branch" ] || [ ! "$old" ] ; then
+
+            if [ "$old" ] && [ "$current_branch" ]; then
+                local dev_null="$(git config --unset-all $current_branch_escaped 2>/dev/null)"
+            fi
+            
+            if [ "$current_branch" ] && [ "$local_source_branch" ]; then
+                if [ `grep '/' -c <<< "$local_source_branch"` -eq 0 ]; then
+                    local_source_branch="upstream/$local_source_branch"
+                fi
+                config_source_command="git config --add $current_branch_escaped \"$local_source_branch\" 2>/dev/null"
+                run_command --command-from-var=config_source_command --force-debug-title="Set config source.$current_branch" --ignore-error || echo "error"
+            fi
+        fi
+        source_branch=$local_source_branch
+    fi
+
+}
+
 git__setup()
 {
     from_init_repo_function="$1"
@@ -592,16 +674,16 @@ git__setup()
 
             can_do_git="$(git branch --list $default_branch)"
             if [ "$default_branch" ]; then
-                dummy="$(git config --add default.branch $default_branch)"
+                local dev_null="$(git config --add default.branch $default_branch)"
             fi
         fi
         # print_debug "git__setup(): [ default_branch='$default_branch' ]"
     else
         old="$(git config --get default.branch)"
         if [ "$old" ]; then
-            dummy="$(git config --unset default.branch)"
+            local dev_null="$(git config --unset default.branch)"
        fi
-       dummy="$(git config --add default.branch $default_branch)"
+       local dev_null="$(git config --add default.branch $default_branch)"
     fi
     current_branch="$(git branch --show-current)"
     if [ ! "$current_branch" ]; then
@@ -614,6 +696,7 @@ git__setup()
 
     # print_debug "git__setup(): [ default_branch='$default_branch',  current_branch='$current_branch', upstream_url='$upstream_url' ]"
 
+    git__setup_source_config
 
     if [ ! "$from_commit" ] && [ ! "$from_date" ] && [ "$current_branch" ] ; then
         from_commit_command="git rev-list $current_branch -1 2>/dev/null"
@@ -621,19 +704,17 @@ git__setup()
             run_command from-commit --command-var from_commit_command --return-var from_commit --skip-error --debug-title "from-commit-command"
         } || {
             if [ "$from_init_repo_function" != "true" ]; then
-                printf "${red}No commits found, run ${gray}smud init ${red} to fetch the upstream repository. -- $from_init_repo_function\n${normal}"
+                if [ "$command" = "init" ]; then
+                    return
+                fi
+
+                printf "${red}No commits found in branch '$current_branch', run ${gray}smud init ${red} to fetch the upstream repository. -- $command\n${normal}"
                 exit
             fi
         }
     fi
 
-    if [ ! "$to_commit" ] && [ ! "$is_smud_dev_repo" ];then
-        if [ ! "$source_branch" ]; then
-            source_branch="$(git config --get source.$current_branch)"
-        fi
-        if [ ! "$source_branch" ]; then
-            source_branch="upstream/$default_branch"
-        fi
+    if [ ! "$to_commit" ] && [ ! "$is_smud_dev_repo" ] && [ "$source_branch" ];then
         if [ "$upstream_url" ] || [ ! "$source_branch" = "upstream/$default_branch" ]; then
             to_commit_command="git rev-list $source_branch -1 2>/dev/null"
             run_command to-commit --command-var to_commit_command --return-var to_commit --skip-error --debug-title "to-commit-command"
@@ -656,232 +737,19 @@ git__setup()
     fi
 }
 
-first_param="$3"
-shift
-parse_arguments ARGS $@
+if [ ! "$include_loaded" ]; then
+    declare -A ARGS
 
-curr_dir="$(pwd)"
-namespace_filter="-A"
+    first_param="$3"
+    shift
+    parse_arguments ARGS $@
 
-get_arg silent '--silent'
-get_arg verbose '--verbose'
-get_arg debug '--debug' "$verbose"
-print_verbose "**** START: include.sh"
-print_debug "Loading arguments...\n"
-get_arg upstream_url '--upstream-url,--upstream,--up-url,-up-url'
-get_arg source_branch '--source-branch,--source'
-get_arg default_branch '--default-branch'
-get_arg configs '--configs,--config,--settings,--setting,--show'
-get_arg skip_auto_update '--skip-auto-update,--skip-auto'
-get_arg examples '--examples,--ex,-ex'
-get_arg help '--help,-?,-h' "$examples"
-get_arg separator '--separator,-sep'
-get_arg col_separator '--col-separtor,-colsep', ' '
-get_arg new '--new'
-get_arg major '--major'
-get_arg minor '--minor'
-get_arg patch '--patch'
-get_arg same '--same'
-get_arg changed '--changed,--changes,--release,--released'
-get_arg installed '--installed,-I'
-get_arg hide_title '--hide-title'
+    curr_dir="$(pwd)"
+    namespace_filter="-A"
 
-get_arg product '--products,--product,-P,--P'
-get_arg all '--all,-A'
-get_arg version '--version,-V'
-get_arg from_commit '--from-commit,-FC'
-get_arg to_commit '--to-commit,-TC'
-get_arg from_date '--from-date,-FD'
-get_arg to_date '--to-date,-TD'
-get_arg grep '--grep'
-get_arg undo '--undo,--reset'
-get_arg soft '--soft'
-get_arg undo_date '--date'
-get_arg no_progress '--no-progress,--skip-progress' "$silent"
-get_arg skip_push '--skip-push,--no-push'
-get_arg skip_files '--skip-files,--no-files'
-get_arg show_files '--show-files,--files'
-get_arg responsible '--responsible,--team'
-get_arg conflicts_files '--conflict-files,--files'
-get_arg merge_ours '--merge-ours,--our,--ours'
-get_arg merge_theirs '--merge-theirs,--their,--theirs'
-get_arg merge_union '--merge-union,--union'
-get_arg namespace '--namespace,-N,-n'
-get_arg development '--development,-D,-DEV,--DEV'
-get_arg external_test '--external-test,-ET,--ET'
-get_arg internal_test '--internal-test,-IT,--IT'
-get_arg production '--production,-PROD,--PROD'
-get_arg stage '--stage,-S' '**'
-
-grep="$(echo "$grep"| sed -e 's/true//g')"
-
-if [ "$namespace" ]; then
-    namespace_filter="-n $namespace"
-fi
-
-if [ "$to_commit" = "true" ]; then
-    to_commit=""
-fi
-if [ "$from_commit" = "true" ]; then
-    from_commit=""
-fi
-
-if [ "$conflicts_files" ]; then
-    conflicts_files=$(echo "$conflicts_files"| awk  --field-separator=, '{ print $1}'|uniq)
-fi
-
-if [ "$responsible" ]; then
-    responsible=$(echo "$responsible" | sed -e "s/\./\\./g" -e 's/*/.*/g') 
-fi
-
-if [ "$skip_files" ]; then
-    show_files="" 
-fi
-
-remote_origin=""
-if [ -d ".git" ]; then
-    is_repo="true"
-    is_smud_cli_repo=""
-    is_smud_gitops_repo=""
+    get_arg silent '--silent'
+    get_arg verbose '--verbose'
+    get_arg debug '--debug' "$verbose"
     
-    cGitOps=$(expr match "$(pwd)" '.*/SMUD-GitOps$')
-    cSmudCli=$(expr match "$(pwd)" '.*/smud-cli$')
-    if [ $cGitOps -gt 0 ]; then
-        if [ "$(git config --get remote.origin.url|grep 'dev.azure.com/dips/DIPS/_git')" ]; then
-            is_smud_gitops_repo="SMUD-GitOps"
-        fi
-    elif [ $cSmudCli -gt 0 ]; then
-        is_smud_cli_repo="smud-cli"
-    fi
-    # echo "is_smud_gitops_repo: '$is_smud_gitops_repo'"
-    # echo "is_smud_cli_repo: '$is_smud_cli_repo'"
+    include_main
 fi
-
-skip_init_feature=""
-if [ "$is_smud_gitops_repo"  ]; then
-    installed="true"
-fi
-
-if [ "$is_smud_gitops_repo"  ] || [ "$is_smud_cli_repo" ] || [ "$(pwd)" == "$HOME" ]; then
-    skip_init_feature="true"
-fi
-
-is_smud_dev_repo="$is_smud_gitops_repo$is_smud_cli_repo"
-
-if [ "$is_smud_gitops_repo" ] && [ "$changed" ]; then
-    stage=""
-    development=""
-    internal_test='true'
-    external_test='true'
-    production='true'
-    show_changes_only='true'
-    show_files=""
-    skip_dependecies="true"
-fi
-
-if [ "$development" ]; then   
-    if [ "$stage" = "**" ]; then stage="";fi
-    stage="$stage development"
-fi
-if [ "$internal_test" ]; then   
-    if [ "$stage" = "**" ]; then stage="";fi
-    stage="$stage internal-test"
-fi
-
-if [ "$external_test" ]; then
-    if [ "$stage" = "**" ]; then stage="";fi
-    stage="$stage external-test"
-fi
-
-if [ "$production" ]; then   
-    if [ "$stage" = "**" ]; then stage="";fi
-    stage="$stage production"
-fi
-
-stage="$(echo "$stage"|xargs|sed -e 's/ /,/g'|xargs)"
-selected_stage="$stage"
-if [ "$selected_stage" = "**" ]; then
-    selected_stage=""
-fi
-if [ "$product" = "true" ]; then
-    product=""
-    all="true"
-fi
-
-selected_product="$product"
-if [ "$selected_product" = "**" ]; then
-    selected_product=""
-fi
-
-filter_product_name="[$product] "
-if [ "$filter_product_name" = "[**] " ] || [ ! "$is_smud_gitops_repo" ]; then
-    filter_product_name=""
-fi
-
-can_list_direct=""
-if ([ ! "$is_smud_gitops_repo" ] || [ "$filter_product_name" ]) && [ ! "$new" ]; then
-    can_list_direct="1"
-fi
-
-print_verbose "can_list_direct=$can_list_direct, is_smud_gitops_repo=$is_smud_gitops_repo, filter_product_name=$filter_product_name, new=$new"
-
-if [ "$grep" ]; then
-    git_grep="$(echo "$grep"| sed -e 's/ /./g'| sed -e 's/"//g'| sed -e "s/'//g" )"
-    git_grep="--grep $git_grep"
-fi
-
-git_pretty_commit='--pretty=format:%H'
-git_pretty_commit_date='--pretty=format:%H|%ad'
-current_branch="$default_branch"
-if [ "$has_args" ] && [ ! "$help" ] && [ "$is_repo" ]; then
-    git__setup 
-fi
-
-if [ "$all" ] && [ ! "$product" ]; then
-    product="**"
-fi
-
-if [ "$installed" ] && [ ! "$product" ]; then
-    product="**"
-fi
-
-setup__product_filters
-
-devops_model_filter="GETTING_STARTED.md CHANGELOG.md applicationsets-staged/* environments/* gitops-engine/* repositories/*"
-diff_filter=''
-
-if [ "$debug" ];then
-    print_debug "filter: $filter"
-    if [ "$installed" ]; then
-        print_debug "app_files_filter: $app_files_filter"
-    fi
-    if [ "$can_do_git" ]; then
-        print_debug "Can do commit:"
-        if [ "$commit_range" ]; then
-            if [ "$from_commit" ]; then print_debug "  from-commit: $from_commit"; fi
-            if [ "$to_commit" ]; then print_debug "  to-commit: $to_commit"; fi
-            print_debug "  commit range: $commit_range"
-        fi
-        if [ "$date_range" ]; then
-            if [ "$from_date" ]; then print_debug "  from-date: $from_date"; fi
-            if [ "$to_date" ]; then print_debug "  from-date: $to_date"; fi
-            print_debug "date range: $date_range"
-        fi
-    fi
-fi
-git_range="$(echo "$commit_range $date_range"|xargs)"
-if [ "$git_range" ] && [ "$git_grep" ]; then
-    git_range="$git_range $git_grep"
-fi
-
-if [ ! "$all" ]; then
-    if [ ! "$new$major$minor$patch$same$changed$product$version$responsible$stage" ]; then
-        all="true"
-    fi
-fi
-
-
-# has_any_commits="$(git log ..5e21036a024abd6eb8d1aaa9ffe9f6c14687821c --max-count=1 --no-merges $git_pretty_commit -- $filter)"
-# echo "hit: $has_any_commits"
-# exit
-print_verbose "**** END: include.sh"

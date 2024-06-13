@@ -109,7 +109,7 @@ if [ -d $download_folder ]; then
    fi   
 
    rm -rf $download_folder 
-   . $destination_folder/install-cli.sh
+   . $destination_folder/install-cli.sh "$@"
 fi
 
 IFS=$old_SEP

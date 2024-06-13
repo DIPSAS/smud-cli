@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-. $(dirname "$0")/include.sh "$@"
+command="$1"
+
+. $(dirname "$0")/smud-main.sh "$@"
 print_verbose "**** START: smud.sh"
-. $(dirname "$0")/install-cli.sh
+. $(dirname "$0")/install-cli.sh "$@"
 . $(dirname "$0")/functions-init.sh
 . $(dirname "$0")/functions.sh
 . $(dirname "$0")/functions-conflicts.sh
@@ -10,7 +12,6 @@ print_verbose "**** START: smud.sh"
 . $(dirname "$0")/functions-gitops.sh
 . $(dirname "$0")/functions-resources.sh
 
-command="$1"
 print_verbose "\n${bold}command: $command\n" 
 
 if [ ! "$command" ] ; then

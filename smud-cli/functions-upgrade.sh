@@ -93,7 +93,7 @@ upgrade()
     if [ ! "$product" ]; then
         if [ ! "$silent" ]; then
             echo "No Products specified by [--products=, --product=, -P=] or [--all, -A]."
-            ask yes_no $yellow "Do you want to upgrade the GitOps-model (Yes/No)?"
+            ask yes_no $yellow "Do you want to upgrade the GitOps-model (Yes/No)?" "-" "yes"
         fi
         if [ "$yes_no" = "yes" ]; then
             local upgrade_filter="$devops_model_filter"
@@ -145,7 +145,7 @@ upgrade()
     error_code=0
     yes_no="yes"
     if [ ! "$silent" ]; then
-      ask yes_no "$yellow" "Do you want to continue upgrading the selected $context (Yes/No)?"
+      ask yes_no "$yellow" "Do you want to continue upgrading the selected $context (Yes/No)?" "-" "y"
     fi  
     local cherrypick__continue_options="--keep-redundant-commits --allow-empty"
     local cherrypick_options="$cherrypick__continue_options -x"
@@ -270,7 +270,7 @@ upgrade()
                 if [ "$silent" ]; then
                     echo "Aborting the cherry-pick process."
                     cherrypick_abort_command="git cherry-pick --abort"
-                    run_command cherry-pick-abort --command-var=cherrypick_abort_command --return-var=dummy --skip-error --debug-title='Abort cherry-pick'
+                    run_command cherry-pick-abort --command-var=cherrypick_abort_command --return-in-var=dev_null --skip-error --debug-title='Abort cherry-pick'
                     if [ ! "$error_code" ] || [ "$error_code" = "0" ]; then
                         error_code=1
                     fi
@@ -285,7 +285,7 @@ upgrade()
                 if [ "$continue_or_abort" = "a" ]; then
                     error_code=0
                     cherrypick_abort_command="git cherry-pick --abort"
-                    run_command cherry-pick-abort --command-var=cherrypick_abort_command --return-var=dummy --skip-error --debug-title='Abort cherry-pick'
+                    run_command cherry-pick-abort --command-var=cherrypick_abort_command --return-in-var=dev_null --skip-error --debug-title='Abort cherry-pick'
                     exit
                 fi
 
@@ -423,7 +423,7 @@ reset_to_commit()
     fi
     yes_no="yes"
     if [ ! "$silent" ]; then
-        ask yes_no $yellow "Do you really want to reset to [$has_undo_commit]?\nThis is a destructive command. All changes newer than that commit will be lost!"
+        ask yes_no $yellow "Do you really want to reset to [$has_undo_commit]?\nThis is a destructive command. All changes newer than that commit will be lost!\nReset (Yes/No)?" "-" "n"
     fi
     if [ "$yes_no" = "yes" ]; then
         local flag="--hard"
@@ -517,10 +517,10 @@ ensure_git_cred_is_configured()
             fi
         fi
         
-        local dummy="$(git config --unset user.name)"
-        local dummy="$(git config --unset user.email)"
-        local dummy="$(git config --add user.name "$user_name_ask" )"
-        local dummy="$(git config --add user.email "$user_email_ask" )"
+        local dev_null="$(git config --unset user.name)"
+        local dev_null="$(git config --unset user.email)"
+        local dev_null="$(git config --add user.name "$user_name_ask" )"
+        local dev_null="$(git config --add user.email "$user_email_ask" )"
     fi
 }
 

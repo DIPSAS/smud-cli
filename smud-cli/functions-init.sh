@@ -36,20 +36,17 @@ set_upstream()
     i=0
     
     if [ "$new_upstream" ]; then
-        remove_upstream_command="git remote rm upstream"
-        run_command remove-upstream --command-from-var=remove_upstream_command --debug-title='Removing upstream config URL'
+        run_command --command="git remote rm upstream" --force-debug-title='Removing upstream config URL'
         if [ "$new_upstream" = "-" ]; then
             println_not_silent "Upstream is removed" $gray
             exit
         else
-            add_upstream_command="git remote add upstream $new_upstream"
-            run_command add_upstream_command --command-from-var=add_upstream_command --debug-title='Adding upstream with user specified URL'
+            run_command --command="git remote add upstream $new_upstream" --force-debug-title='Adding upstream with user specified URL'
             println_not_silent "Upstream configured with '$new_upstream' " $gray
         fi
     elif [ ! "$new_upstream" ]; then
         new_upstream="$default_upstream"
-        add_upstream_command="git remote add upstream $new_upstream"
-        run_command add_upstream_command --command-from-var=add_upstream_command --debug-title='Adding upstream with default URL'
+        run_command --command="git remote add upstream $new_upstream" --force-debug-title='Adding upstream with default URL'
         println_not_silent "Upstream configured with '$new_upstream' " $gray
     elif [ ! "$caller" ]; then
         println_not_silent "Upstream alredy configured with '$new_upstream' " $gray
@@ -64,33 +61,40 @@ set_origin()
     fi    
 
     exit_if_is_not_a_git_repository "Setting remote.origin.url require a git repository!"
-   
+    
     # Check if origin exists
-    check_origin_command="git config --get remote.origin.url"
-    run_command --check-origin --command-from-var=check_origin_command --return-var=remote_origin --debug-title='Checking if remote.origin.url exist in git config'
+    git_config_command="git config --get remote.origin.url"
+    run_command --command-in-var=git_config_command --return-var=remote_origin --debug-title='Checking if remote.origin.url exist in git config'
     # If string is empty, set the remote origin url
     if [ ! "$remote_origin" ]; then
-        ask remote_origin $yellow "Remote repository origin is not set, please enter URL for the remote origin.\nOrigin URL:" "true"
+        ask remote_origin $yellow "Remote repository origin is not set, please enter URL for the remote origin.\nOrigin URL:" "true" 
         if [ "$remote_origin" ]; then
-            add_origin_command="git remote add origin $remote_origin"
-            run_command --set-origin --command-from-var=add_origin_command --return-var=dummy --debug-title='Adding remote origin' || return
+            println_not_silent "Setting remote origin '$remote_origin'" $gray
+            run_command --command="git remote add origin $remote_origin" --force-debug-title='Setting remote origin'
         fi
+    else
+        println_not_silent "Remote origin '$remote_origin' already set." $gray
     fi
 }
 
 merge_upstream()
 {
-    if [ "$skip_init_feature" ];then
+    if [ "$skip_init_feature" ] && [ ! "$merge" ];then
         return
     fi    
 
-    if [ "$skip_auto_update" ]; then
+    if [ "$skip_auto_update" ] && [ ! "$merge" ]; then
         return
     fi
-    println_not_silent "Merging upstream into local branch..." $gray
-    merge_upstream_command="git merge upstream/main"
-    run_command merge-upstream --command-from-var=merge_upstream_command --return-var=dummy --debug-title='Merging upstream repository into local branch' || return
     
+    if [ "$merge" ] && [ "$merge" != "true" ]; then
+        git__setup_source_config "$merge"
+    fi    
+    if [ "$source_branch" ]; then
+        msg="Merging upstream '$source_branch' into local branch '$current_branch' ..."
+        println_not_silent "Merging upstream '$source_branch' into local branch '$current_branch' ..." $gray
+        run_command --command="git merge $source_branch" --return-in-var=dev_null --debug-title="$msg"
+    fi    
 }
 
 fetch_origin()
@@ -107,26 +111,36 @@ fetch_origin()
         return
     fi
 
-    println_not_silent "Fetching origin..." $gray  
-    fetch_origin_command="git fetch origin"
-    run_command fetch-origin --command-from-var=fetch_origin_command --return-var=dummy --debug-title='Fetching origin' || return
+    println_not_silent "Fetching origin '$remote_origin' into branch '$current_branch'..." $gray  
+    run_command --command="git fetch origin" --return-in-var=dev_null --debug-title='Fetching origin'
 } 
+
+git_push() 
+{
+    if [ ! "$remote_origin" ]; then
+        println_not_silent "Missing remote-origin. Pushing skipped..."  $gray  
+        return
+    fi
+
+    println_not_silent "Push current branch '$current_branch' to origin-url '$remote_origin'..." $gray  
+    run_command --command="git push origin $current_branch" --return-in-var=dev_null --debug-title='Push to remote'
+}
 
 init_repo()
 {
-    init_command="git init"
     if [ "$skip_init_feature" ];then
         return
     fi    
+
     if [ ! "$is_repo" ];then
-        run_command init-repo --command-from-var=init_command --return-var=dummy --debug-title='Initializing repository' || return
+        run_command --command="git init" --return-in-var=dev_null --debug-title='Initializing repository' || return
         is_repo="true"
 
         branches="$(git branch)"
         if [ ! -n "$branches" ]; then
             # "main" possibly not default branch name so create it
-            create_main_branch="git checkout -b main"
-            run_command checkout-main --command-from-var=create_main_branch --return-var=dummy --debug-title='Creating main branch' || return
+            git_checkout_command="git checkout -b main"
+            run_command --command-in-var git_checkout_command --return-in-var=dev_null --debug-title='Creating main branch' || return
         fi 
     fi
     git__setup 'true'
@@ -138,8 +152,7 @@ fetch_upstream()
         return
     fi    
 
-    fetch_upstream_command="git fetch upstream"
-    run_command fetch-upstream --command-from-var=fetch_upstream_command --return-var=dummy --debug-title='Fetching upstream' || return
+    run_command --command="git fetch upstream" --return-in-var=dev_null --force-debug-title='Fetching upstream'
 } 
 
 init_upstream_url() 
@@ -160,7 +173,6 @@ init_upstream_url()
         set_upstream "$upstream_url"
         print_debug "upstream_url: $upstream_url"
     fi
-
 }
 
 # Initalizes repo, upstream and origin if not configured. Will always fetch upstream when called.
@@ -184,6 +196,11 @@ init()
         printf "${yellow}default-branch:${normal} \n"
         printf "  With Only ${green}$func${normal}, ${yellow}default-branch${normal} will be configured to '${bold}main${normal}' . \n"
         printf "  With ${green}$func ${yellow}${bold}--default-branch <value>${normal}${normal}, ${bold}default-branch '<value>'${normal} will be configured. \n"
+        printf "${yellow}merge upstream:${normal} \n"
+        printf "  With ${green}$func ${yellow}${bold}--merge${normal} the '${bold}git merge upstream/main${normal}' command will be runned. \n"
+        printf "  With ${green}$func ${yellow}${bold}--merge --push${normal} the ${gray}'git merge upstream/main; ${normal}${bold}git push${normal}' command will be runned. \n"
+        printf "  With ${green}$func ${yellow}${bold}--merge <branch>${normal}${normal} the '${bold}git merge upstream/${yellow}${bold}<branch>${normal}' command will be runned. \n"
+        printf "  With ${green}$func ${yellow}${bold}--merge <branch> --push${normal}${normal} the '${gray}git merge upstream/<branch>${normal}; ${bold}git push${normal}' command will be runned. \n"
         printf "Show ${yellow}configs:${normal} \n"
         printf "  ${green}$func${normal} ${yellow}--configs${normal} will list all repository config key/values. ${yellow}--show${normal} or ${yellow}--settings${normal} can be used as well. \n"
         printf "  ${green}$func${normal} ${yellow}--show${normal} or ${yellow}--settings${normal} can be used as well. \n"
@@ -204,11 +221,10 @@ init()
         set_upstream "-"
         return
     fi
-    
     if [ ! "$is_repo" ]; then
         local yes_no="yes"
         if [ ! "$silent" ]; then
-            ask yes_no $yellow "The current directory does not seem to be a git repository\nWould you like to initialize the repository and merge the remote upstream? (yes/no)"
+            ask yes_no $yellow "The current directory does not seem to be a git repository\nWould you like to initialize the repository and merge the remote upstream (Yes/No)?" "-" "yes"
         fi
         if [ ! "$yes_no" = "yes" ]; then
             println_not_silent "Aborting" $yellow
@@ -220,53 +236,34 @@ init()
         fetch_upstream
         merge_upstream
         init_repo
+        if [ "$merge" ]; then
+            run_push=$force_push
+        fi
     else
         init_upstream_url
         fetch_upstream
-    fi
-
-    if [ "$is_repo" ]; then
-        
-        if [ ! "$source_branch" ]; then
-            
-            if [ "$current_branch" ]; then    
-                source_branch="$(git config --get source.$current_branch)"
-            fi
-        fi
-        
-
-        if [ ! "$source_branch" ]; then
-            source_branch="upstream/$default_branch"
-        fi
-
-        
-        old=""
-        if [ "$current_branch" ]; then    
-            old="$(git config --get source.$current_branch)"
-        fi
-        
-        if [ ! "$old" = "$source_branch" ] || [ ! "$old" ] ; then
-
-            if [ "$old" ] && [ "$current_branch" ]; then
-                dummy="$(git config --unset source.$current_branch)"
-            fi
-            
-            if [ "$current_branch" ] && [ "$source_branch" ]; then
-                dummy="$(git config --add source.$current_branch $source_branch)"
-            fi
+        if [ "$merge" ]; then
+            merge_upstream
+            run_push=$force_push
         fi
     fi
 
+    git__setup_source_config
 
     if [ ! "$remote_origin" ]; then
-        println_not_silent "Setting and fetching origin" $gray
         set_origin
-        fetch_origin
+        if [ ! "$run_push" ]; then
+            fetch_origin
+        fi
         println_not_silent "Initalization complete." $green
     fi
 
+    if [ "$run_push" ]; then
+        git_push
+    fi
+
     if [ "$configs" ]; then
-        config_command="git config -l"
-        run_command config-list --command-var config_command  --skip-error
+        git_config_command="git config -l"
+        run_command --command-in-var git_config_command  --skip-error
     fi
 }

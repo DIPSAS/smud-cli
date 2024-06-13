@@ -1,4 +1,21 @@
 #!/usr/bin/env bash
+if [ ! "$include_loaded" ]; then
+    dir_name=$destination_folder
+    if [ ! "$dir_name" ]; then
+        dir_name="$(dirname "$(readlink -f "$0")")"
+        if [ ! "$dir_name" ]; then
+            dir_name="."
+        fi
+    fi
+    if [ ! "$dir_name/include.sh" ]; then
+print_verbose() 
+{ 
+    echo $0 
+}    
+    else
+        . $dir_name/include.sh "$@"
+    fi
+fi
 
 print_verbose "**** START: install-cli.sh"
 

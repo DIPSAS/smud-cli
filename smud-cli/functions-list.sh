@@ -83,7 +83,11 @@ list()
             diff_filter='--diff-filter=ACMRT'
             println_not_silent "List new products ready for installation:${normal}" $white
         elif [ "$installed" ]; then
-            println_not_silent "List current products installed:" $white
+            if [ "$changed" ]; then
+                println_not_silent "List released installed products:" $white
+            else
+                println_not_silent "List installed products:" $white
+            fi
         else
             println_not_silent "List new or updated products ready for installation:" $white
         fi    
@@ -139,6 +143,10 @@ product_infos__find_latest_products_with_version()
     fi
     
     resolve_team_array
+
+    if [ "$responsible" ] && [ ${#teams[@]} -eq 0 ]; then
+        return
+    fi
 
     {
         app_files_command=$(sed -e "s|__app_files_filter__|$app_files_filter|g" -e "s|__filter__|$filter|g" <<< $app_files_command  )
@@ -661,9 +669,9 @@ product_infos__print()
                 # echo "{ stage: '$product_stage',  product_name: '$product_name', latest_version: '$latest_version', commit: '$commit', product_info: '${product_infos[${stage_product_name}]}' }"
                 if [ "$show_tags_in_list" ]; then
                     if [ "$show_tags_in_list" = "reverse" ]; then
-                        tags="$(get_tags "'$latest_version'" "'$current_version'")"
+                        get_tags tags "'$latest_version'" "'$current_version'"
                     else
-                        tags="$(get_tags "'$current_version'" "'$latest_version'")"
+                        get_tags tags "'$current_version'" "'$latest_version'"
                     fi
 
                     if [ "$major" ] && [ ! "$tags" = "MAJOR" ];then
@@ -865,33 +873,43 @@ get_next_stage_version()
 
 get_tags() 
 {
+    local -n get_tags_tags="$1"
+
+    get_tags_tags=""
     replace_reg_exp="s/'//g"
-    cur_ver="$(echo "$1" | sed -e $replace_reg_exp)"
-    latest_ver="$(echo "$2" | sed -e $replace_reg_exp)"
+    cur_ver="$(echo "$2" | sed -e $replace_reg_exp)"
+    latest_ver="$(echo "$3" | sed -e $replace_reg_exp)"
     if [ ! "$cur_ver" ] && [ "$latest_ver" ]; then
-        echo "NEW"
+        get_tags_tags="NEW"
         return
     elif [ "$cur_ver" ] && [ "$latest_ver" ]; then
         # cur_ver_array=$(echo "$cur_ver" | tr "." "\n")
         # latest_ver_array=$(echo "$latest_ver" | tr "." "\n")
         cur_ver_major="$(echo "$cur_ver" | cut -d "." -f 1)"
+        # cur_ver_major="${cur_ver_major%%[[:cntrl:]]}"
         latest_ver_major="$(echo "$latest_ver" | cut -d "." -f 1)"
-        if [ ! "$cur_ver_major" = "$latest_ver_major" ];then
-            echo "MAJOR"
+        # latest_ver_major="${latest_ver_major%%[[:cntrl:]]}"
+        if [ "$cur_ver_major" != "$latest_ver_major" ];then
+            get_tags_tags="MAJOR"
             return
         fi
+        
         cur_ver_minor="$(echo "$cur_ver" | cut -d "." -f 2)"
+        # cur_ver_minor="${cur_ver_minor%%[[:cntrl:]]}"
         latest_ver_minor="$(echo "$latest_ver" | cut -d "." -f 2)"
-        if [ ! "$cur_ver_minor" = "$latest_ver_minor" ];then
-            echo "MINOR"
+        # latest_ver_minor="${latest_ver_minor%%[[:cntrl:]]}"
+        if [ "$cur_ver_minor" != "$latest_ver_minor" ];then
+            get_tags_tags="MINOR"
             return
         fi
 
         cur_ver_patch="$(echo "$cur_ver" | cut -d "." -f 3)"
         latest_ver_patch="$(echo "$latest_ver" | cut -d "." -f 3)"
-        if [ ! "$cur_ver_patch" = "$latest_ver_patch" ];then
-            echo "patch"
-            return
+        if [ "$cur_ver_patch" != "$latest_ver_patch" ];then
+            if [ ! "${cur_ver_patch%%[[:cntrl:]]}" = "${latest_ver_patch%%[[:cntrl:]]}" ];then
+                get_tags_tags="patch"
+                return
+            fi
         fi
     fi
 }
