@@ -83,9 +83,11 @@ changelog_get_version()
         file="$(get_changelog_file)"
     fi
     if [ "$file" ]; then
+        old_SEP=$IFS
         IFS='#'
         changes=(`cat $file`)
         version="$(echo "${changes[2]}"|sed -e 's/ Version //g'| cut -d "-" -f 1 | tr -d '\n' )"
+        IFS=$old_SEP
     fi
     echo $version
 }

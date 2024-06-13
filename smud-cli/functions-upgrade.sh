@@ -75,10 +75,7 @@ upgrade()
 
     init
 
-    if [ ! "$is_repo" ]; then
-        print_error "'$(pwd)' is not a git repository!"
-        return
-    fi
+    exit_if_is_not_a_git_repository "Upgrade can only be executed on a git repository!"  
 
     if [ ! "$git_range" ]; then
         print_error "No revisions available to upgrade!"
@@ -126,7 +123,7 @@ upgrade()
         print_gray "No $context found."   
         return
     fi
-
+    old_SEP=$IFS
     IFS=$'\n';read -rd '' -a rev_list <<< "$rev_list"
 
     correlate_against_already_cherripicked rev_list already_cherry_picked_commits
@@ -137,8 +134,10 @@ upgrade()
         else
             print_gray "No $context found."           
         fi
+        IFS=$old_SEP
         return
     fi
+    IFS=$old_SEP
 
     # git_range="${rev_list[@]}"
 

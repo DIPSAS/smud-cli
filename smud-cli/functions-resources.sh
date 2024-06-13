@@ -20,8 +20,10 @@ resources()
     pods_command="kubectl get pods ${namespace_filter} ${exclude_ns} --sort-by=.spec.containers[].resources.requests.cpu -o custom-columns=NAME:.metadata.name,${ns_col}REQ-CPU:.spec.containers[].resources.requests.cpu,REQ-MEM:.spec.containers[].resources.requests.memory,INIT-REQ-CPU:.spec.initContainers[].resources.requests.cpu,INIT-REQ-MEM:.spec.initContainers[].resources.requests.memory,OWNER-KIND:.metadata.ownerReferences[].kind,OWNER-NAME:.metadata.ownerReferences[].name |sed -e 's/<none>/      /g'"
     cronjobs_command="kubectl get cj ${namespace_filter} --sort-by=.spec.jobTemplate.spec.template.spec.containers[].resources.requests.cpu -o custom-columns=NAME:.metadata.name,${ns_col}REQ-CPU:.spec.jobTemplate.spec.template.spec.containers[].resources.requests.cpu,REQ-MEM:.spec.jobTemplate.spec.template.spec.containers[].resources.requests.memory |sed -e 's/<none>/      /g'"
     
-    run_command pods-command --command-var=pods_command --return-var=lines --force-debug-title 'Pod resources'
-    IFS=$'\n' read -rd '' -a lines_array <<< "$lines"
+    run_command --command-var=pods_command --return-var=lines_array --array --force-debug-title 'Pod resources'
+    old_SEP=$IFS
+    
+    IFS=$'\n'
     if [ ${#lines_array[@]} -gt 1 ]; then
         echo "Pods:"
         header="${lines_array[0]}"
@@ -29,14 +31,16 @@ resources()
         echo "${lines[@]}" | tail +2|tac
     fi
 
-    run_command cronjobs-command --command-var=cronjobs_command --return-var=cron_lines --force-debug-title 'Cronjob resources'
-    IFS=$'\n' read -rd '' -a cron_lines_array <<< "$cron_lines"
+    run_command --command-var=cronjobs_command --return-var=cron_lines_array --array --force-debug-title 'Cronjob resources'
+    
+    IFS=$'\n'
     if [ ${#cron_lines_array[@]} -gt 1 ]; then
         printf "\nCronJobs:\n"
         header="${cron_lines_array[0]}"
         printf "${white}$header${normal}\n"
         echo "${cron_lines[@]}" | tail +2|tac
     fi
+    IFS=$old_SEP
 }
 
 print_verbose "**** END: functions-resources.sh"

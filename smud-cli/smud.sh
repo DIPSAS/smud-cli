@@ -20,7 +20,7 @@ else
         "--help"        ) help;;
         "version"       ) version;;
         "set-upstream"  ) set_upstream;;
-        "init"          ) init $3;;
+        "init"          ) init "${3:-$2}";;
         "update-cli"    ) update_cli;;
         "conflict"      ) conflicts;;
         "conflicts"     ) conflicts;;

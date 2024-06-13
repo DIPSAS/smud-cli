@@ -94,12 +94,13 @@ gitops_model__show_changelog_file()
     if [ "$changelog_content" ]; then     
         print "$context GitOps-model Changelog:"
         echo -e "$blue$changelog_content$reset"
-        IFS=$'\n';read -rd '' -a changelog_commits <<< "$changelog_commits"
-
+        old_SEP=$IFS
+        IFS=$'\n'
         for commit in "${changelog_commits[@]}"
         do 
             git show $commit:CHANGELOG.md --pretty=format:%Cblue
         done
+        IFS=$old_SEP
     else
         print "No $context GitOps-model Changelog found!"
     fi

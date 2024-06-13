@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+old_SEP=$IFS
 HOME_DIR="$(dirname `readlink -f ~/.bashrc`)"
 VERSION="LATEST"
 folder=smud-cli
@@ -110,3 +111,5 @@ if [ -d $download_folder ]; then
    rm -rf $download_folder 
    . $destination_folder/install-cli.sh
 fi
+
+IFS=$old_SEP
