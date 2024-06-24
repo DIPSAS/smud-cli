@@ -1,3 +1,6 @@
+## Version 1.0.16
+- Help Cleanup
+
 ## Version 1.0.15
 - Improved upgrade-cli
 - Refactored include.sh into smud-main.sh and include.sh

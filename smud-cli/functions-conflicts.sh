@@ -3,7 +3,7 @@ print_verbose "**** START: functions-conflicts.sh"
 conflicts()
 {
     if [ "$help" ]; then
-        echo "${bold}smud conflict(s)${normal} [options]: List conflicts in yaml-files or resolve conflicts in conflictiong files."
+        echo "${bold}smud conflict(s)${normal} [options]: List conflicts in yaml-files or resolve conflicts in conflictiong files. (Under construction)"
         echo ""
         echo "Options:"
         echo "  <no-options>: Scan and list conflicts in yaml-files."

@@ -8,28 +8,25 @@ show_valid_commands()
     echo "  update-cli    Download and update the smud CLI. Required ${bold}curl${normal} installed on the computer" 
     echo "  version       Show the version-log of smud CLI" 
     echo "  list          List products ready for installation or current products installed."
-    echo "  conflict(s)   Scan and list conflicts in yaml-files."
+    echo "  conflict(s)   Scan and list conflicts in yaml-files. (Under construction)"
 
     if [ ! "$is_smud_dev_repo" ]; then
         echo "  upgrade       Upgrade one or more productst to the repository."
-        echo "  set-upstream  Set upstream. If not specfied upstream-url, the https://github.com/DIPSAS/DIPS-GitOps-Template.git will be configured."
-        echo "  upstream      Fetch upstream. If upstream-url is not set, the https://github.com/DIPSAS/DIPS-GitOps-Template.git will be configured before upstream is fetched."
-        echo "  init          Same as upstream"
+        echo "  set-upstream  Set upstream.   If upstream-url is not set, the https://github.com/DIPSAS/DIPS-GitOps-Template.git will be configured.\n"
+        echo "  init          Fetch upstream. If upstream-url is not set, the https://github.com/DIPSAS/DIPS-GitOps-Template.git will be configured before upstream is fetched."
         echo ""
         echo "More help:"
         echo " > smud version"
         echo " > smud set-upstream --help"
         echo " > smud init --help"
-        echo "   smud upstream --help"
         echo " > smud list --help"
         echo " > smud upgrade --help"
         echo " > smud list --examples"
     else
         printf "${gray}Unavaible commands:${normal}\n"
         printf "  ${gray}upgrade       Upgrade one or more productst to the repository.${normal}\n"
-        printf "  ${gray}set-upstream  Set upstream. If not specfied upstream-url, the https://github.com/DIPSAS/DIPS-GitOps-Template.git will be configured.\n"
-        printf "  ${gray}upstream      Fetch upstream. If upstream-url is not set, the https://github.com/DIPSAS/DIPS-GitOps-Template.git will be configured before upstream is fetched. ${normal}\n"
-        printf "  ${gray}init          Same as upstream${normal}\n"
+        printf "  ${gray}set-upstream  Set upstream.   If upstream-url is not set, the https://github.com/DIPSAS/DIPS-GitOps-Template.git will be configured.\n"
+        printf "  ${gray}init          Fetch upstream. If upstream-url is not set, the https://github.com/DIPSAS/DIPS-GitOps-Template.git will be configured before upstream is fetched. ${normal}\n"
     fi
 
 }
