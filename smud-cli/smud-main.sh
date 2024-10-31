@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+
+startup_shift="true"
+. $(dirname "$0")/include_args.sh "$@"
+
 if [ ! "$smud_main_loaded" ]; then
 
     smud_main_loaded="true"

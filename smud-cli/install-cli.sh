@@ -73,5 +73,7 @@ if [ $HOMEDRIVE ] && [ -f $HOME_ABS_DIR/.bash_profile ]; then
 elif [ -f $HOME_ABS_DIR/.bashrc ]; then
     . ~/.bashrc
 fi
-
+if [ -f "$DEST_DIR/smud.sh" ]; then
+    chmod +x $DEST_DIR/smud.sh
+fi
 print_verbose "**** END: install-cli.sh"
