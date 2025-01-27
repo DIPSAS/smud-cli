@@ -9,6 +9,7 @@ show_valid_commands()
     echo "  version       Show the version-log of smud CLI" 
     echo "  list          List products ready for installation or current products installed."
     echo "  conflict(s)   Scan and list conflicts in yaml-files. (Under construction)"
+    echo "  resource(s)   Report rescource in use in current kubernetes-cluster"
 
     if [ ! "$is_smud_dev_repo" ]; then
         echo "  upgrade       Upgrade one or more productst to the repository."

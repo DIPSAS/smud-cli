@@ -20,15 +20,19 @@ resources()
     pods_command="kubectl get pods ${namespace_filter} ${exclude_ns} --sort-by=.spec.containers[].resources.requests.cpu -o custom-columns=NAME:.metadata.name,${ns_col}REQ-CPU:.spec.containers[].resources.requests.cpu,REQ-MEM:.spec.containers[].resources.requests.memory,INIT-REQ-CPU:.spec.initContainers[].resources.requests.cpu,INIT-REQ-MEM:.spec.initContainers[].resources.requests.memory,OWNER-KIND:.metadata.ownerReferences[].kind,OWNER-NAME:.metadata.ownerReferences[].name |sed -e 's/<none>/      /g'"
     cronjobs_command="kubectl get cj ${namespace_filter} --sort-by=.spec.jobTemplate.spec.template.spec.containers[].resources.requests.cpu -o custom-columns=NAME:.metadata.name,${ns_col}REQ-CPU:.spec.jobTemplate.spec.template.spec.containers[].resources.requests.cpu,REQ-MEM:.spec.jobTemplate.spec.template.spec.containers[].resources.requests.memory |sed -e 's/<none>/      /g'"
     
-    run_command --command-var=pods_command --return-var=lines_array --array --force-debug-title 'Pod resources'
+    run_command --command-var=pods_command --return-var=lines_str --skip-shell --force-debug-title 'Pod resources'
+
     old_SEP=$IFS
     
-    IFS=$'\n'
-    if [ ${#lines_array[@]} -gt 1 ]; then
+    # IFS=$'\n'
+    read -rd '' -a lines <<< "$lines_str"
+    # echo ${#lines[@]}:${lines_array[@]}
+    if [ ${#lines[@]} -gt 1 ]; then
         echo "Pods:"
-        header="${lines_array[0]}"
+        header="${lines[0]}"
         printf "${white}$header${normal}\n"
-        echo "${lines[@]}" | tail +2|tac
+        echo "${lines[@]}"
+        # echo "${lines[@]}" | tail +2|tac
     fi
 
     run_command --command-var=cronjobs_command --return-var=cron_lines_array --array --force-debug-title 'Cronjob resources'

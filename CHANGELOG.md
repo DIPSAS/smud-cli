@@ -1,4 +1,7 @@
-## Version 1.0.17
+## Version 1.0.19
+- Improved branch handling
+
+## Version 1.0.18
 - Args refactor
 
 ## Version 1.0.16

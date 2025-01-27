@@ -467,37 +467,60 @@ git__setup_source_config()
     local local_source_branch=$1
     
     if [ "$is_repo" ]; then
+        if [ "$local_source_branch" ]; then
+            source_branch=$local_source_branch
+        elif [ "$previous_branch" ] && [ "$branch_arg" ] && [ ! "$branch_arg" = "$previous_branch" ]; then
+            source_branch=$previous_branch
+        fi
+
+
+        upstream_prefix=""
+        if [ "$current_branch" ] && [ "$default_branch" = "$current_branch" ]; then
+            upstream_prefix="upstream/"
+            local_source_branch=$current_branch
+        fi
+
         if [ ! "$local_source_branch" ]; then
             local_source_branch=$source_branch
         fi
-        current_branch_escaped=$(sed -e 's/\//.f./g' -e 's/\\/.b./g' <<< "source.$current_branch" )
+        current_source_branch_escaped=$(sed -e 's|/|.f.|g' -e 's|\\|.b.|g' <<< "source.$current_branch" )
 
         if [ ! "$local_source_branch" ]; then
             if [ "$current_branch" ]; then    
-                local_source_branch="$(git config --get $current_branch_escaped 2>/dev/null)"
+                local_source_branch="$(git config --get $current_source_branch_escaped 2>/dev/null)"
             fi
         fi
         
         if [ ! "$local_source_branch" ]; then
-            local_source_branch="upstream/$default_branch"
+            local_source_branch="$upstream_prefix$default_branch"
         fi
         
         old=""
         if [ "$current_branch" ]; then    
-            old="$(git config --get $current_branch_escaped 2>/dev/null)"
+            old="$(git config --get $current_source_branch_escaped 2>/dev/null)"
         fi
+        # echo "******0: old: $old, local_source_branch: $local_source_branch, upstream_prefix: $upstream_prefix, current_source_branch_escaped=$current_source_branch_escaped"
+        if [ ! "$upstream_prefix" ] && [ $(echo "$old" | grep "upstream/" -c) -eq 1 ] ; then
+            old="-"
+            local_source_branch="$upstream_prefix$default_branch"
+        fi
+        # echo "******1: old: $old, local_source_branch: $local_source_branch, upstream_prefix: $upstream_prefix"
         
-        if [ ! "$old" = "$local_source_branch" ] || [ ! "$old" ] ; then
-
+        if [ ! "$old" = "$local_source_branch" ] || [ ! "$old" ] || [ "$old" = "-" ]; then
             if [ "$old" ] && [ "$current_branch" ]; then
-                local dev_null="$(git config --unset-all $current_branch_escaped 2>/dev/null)"
+                local dev_null="$(git config --unset-all $current_source_branch_escaped 2>/dev/null)"
+                # echo "******2: $current_source_branch_escaped=$current_source_branch_escaped"
             fi
             
-            if [ "$current_branch" ] && [ "$local_source_branch" ]; then
-                if [ `grep '/' -c <<< "$local_source_branch"` -eq 0 ]; then
-                    local_source_branch="upstream/$local_source_branch"
+            if ([ "$current_branch" ] && [ "$local_source_branch" ]) || [ "$old" = "-" ]; then
+                if [ `grep '/' -c <<< "$local_source_branch"` -eq 0 ] || [ "$old" = "-" ]; then
+
+                    local_source_branch="$upstream_prefix$local_source_branch"
+                    # echo "******3: local_source_branch=$local_source_branch"
                 fi
-                config_source_command="git config --add $current_branch_escaped \"$local_source_branch\" 2>/dev/null"
+                
+
+                config_source_command="git config --add $current_source_branch_escaped \"$local_source_branch\" 2>/dev/null"
                 run_command --command-from-var=config_source_command --force-debug-title="Set config source.$current_branch" --ignore-error || echo "error"
             fi
         fi
@@ -506,14 +529,151 @@ git__setup_source_config()
 
 }
 
+show_configs_graph()
+{
+    get_arg delete_branch '--delete,-D,--remove'
+    if [ "$delete_branch" ]; then
+        return
+    fi
+
+    sources=()
+    sources+=($current_branch)
+    if [ "$current_branch" ]; then
+        source_top=$(git config --get "source.$current_branch")
+    fi
+
+    source_var=$source_top
+    for i in $(seq 1 15); do
+        if [ ! "$source_var" ]; then
+            break
+        fi
+        if [ "$source_var" = "upstream/$default_branch" ]; then
+            break
+        fi
+        if [[ ! " ${sources[@]} " =~ " $source_var " ]]; then
+            sources+=("$source_var")
+        fi
+
+        if [ $(grep '/' -c <<< $source_var) -eq 0 ]; then
+            source_var=$(git config --get "source.$source_var")
+        else
+            break
+        fi
+
+    done
+
+
+    if [[ ! " ${sources[@]} " =~ " upstream/$default_branch " ]]; then
+        sources+=("upstream/$default_branch")
+    fi
+
+    source_graph=""
+    for source_var in "${sources[@]}"; do
+        if [ "$source_graph" ]; then
+            source_graph="$source_graph => $source_var"
+        else 
+            source_graph="$source_var"
+        fi
+    done
+    println_not_silent "Source graph: $normal$source_graph" $white
+}
+
+show_configs()
+{
+    if [ "$configs" ]; then
+        println_not_silent "\nConfiguration:" $white
+        println_not_silent "--------------" $white
+        println_not_silent "Current Branch: $normal$(git branch --show-current)"  $white
+       
+        show_configs_graph
+
+        if [ "$show_detail" ]; then
+            git_config_command="git config -l|sort"
+        elif [ "$show_all" ]; then
+            git_config_command="git config -l | grep -E 'branch\.|remote\.|source\.|remote\.|default\.'|sort"
+        else 
+            regex="\.$current_branch[.=]"
+            git_config_command="git config -l | grep -E "$regex"|sort"
+        fi
+
+        println_not_silent "$(run_command --command-in-var git_config_command  --skip-error)" $thin_gray
+        echo ""
+    fi
+}
+
+
+change_branch()
+{
+   previous_branch="" 
+   if [ "$branch_arg" ]; then
+        branch_arg_grep=$(echo "$branch_arg\$")    
+        local_current_branch="$(git branch --show-current | sed -e 's| ||g' -e 's|*||g')"     
+        get_arg delete_branch '--delete,-D,--remove'
+
+        has_branch=$(git branch | sed -e 's| ||g' -e 's|*||g'|grep -E $branch_arg_grep -c)
+        if [ "$has_branch" = "0" ]; then
+            if [ "$delete_branch" ]; then
+                println_not_silent "Can't delete unexisting branch '$branch_arg' not found"
+            else
+                previous_branch=$local_current_branch
+                println_not_silent "Creating Branch '$branch_arg'"
+                git_create_branch_command="git branch $branch_arg;git branch --unset-upstream $branch_arg"
+                run_command --command-in-var git_create_branch_command --force-debug-title="Create branch"
+            fi
+        else
+            if [ "$delete_branch" ]; then
+                is_current_branch=$(echo "$local_current_branch" |grep -E $branch_arg_grep -c)
+                if [ "$is_current_branch" = "1" ]; then
+                    println_not_silent "Unable to delete current branch '$local_current_branch'"
+                else    
+                    git_delete_branch_command="git branch --delete $branch_arg"
+                    run_command --command-in-var git_delete_branch_command  --force-debug-title="Delete branch"
+                fi
+            fi
+        fi
+
+        if [ "$delete_branch" ]; then
+            git_delete_branch_source_command="git config --unset-all source.$branch_arg"
+            run_command --command-in-var git_delete_branch_source_command  --force-debug-title="Delete branch Source"
+            git_delete_branch_source_command="git config --unset-all branch.$branch_arg.remote;git config --unset-all branch.$branch_arg.merge"
+            run_command --command-in-var git_delete_branch_source_command  --force-debug-title="Delete branch remotes"
+
+            show_configs
+
+            exit
+        fi
+        
+        if [ "$local_current_branch" = "$branch_arg" ]; then
+            if [ "$command" = "init" ] || [ "$command" = "git" ]; then
+                println_not_silent "Already on branch '$branch_arg'"
+            fi
+        else
+            git_checkout_command="git checkout $branch_arg -q"
+            run_command --command-in-var git_checkout_command  --force-debug-title="Change branch"
+            println_not_silent "Switched to branch '$branch_arg'"
+        fi
+
+        current_branch=$branch_arg
+        # git__setup_source_config
+    fi    
+
+
+}
+
 git__setup()
 {
+    change_branch
     from_init_repo_function="$1"
     # print_debug "git__setup(): [ default_branch='$default_branch', current_branch='$current_branch', from_init_repo_function='$from_init_repo_function' ]"
     if [ ! "$default_branch" ]; then
         default_branch="$(git config --get default.branch)"
         if [ ! "$default_branch" ]; then
             default_branch="$(git config --list | grep -E 'branch.(main|master).remote' | sed -e 's/branch\.//g' -e 's/\.remote//g' -e 's/=origin//g')"
+
+            if [ ! "$default_branch" ]; then
+                default_branch="$(git branch --show-current)"
+            fi
+
             if [ ! "$default_branch" ]; then
                 default_branch="$(git config --get init.defaultbranch)"
             fi
@@ -530,11 +690,11 @@ git__setup()
         # print_debug "git__setup(): [ default_branch='$default_branch' ]"
     else
         old="$(git config --get default.branch)"
-        if [ "$old" ]; then
-            local dev_null="$(git config --unset default.branch)"
-       fi
-       local dev_null="$(git config --add default.branch $default_branch)"
+        if [ ! "$old" ]; then
+           local dev_null="$(git config --add default.branch $default_branch)"
+        fi
     fi
+
     current_branch="$(git branch --show-current)"
     if [ ! "$current_branch" ]; then
         current_branch="$default_branch"

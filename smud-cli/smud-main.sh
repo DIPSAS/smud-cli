@@ -13,7 +13,9 @@ if [ ! "$smud_main_loaded" ]; then
     get_arg upstream_url '--upstream-url,--upstream,--up-url,-up-url'
     get_arg source_branch '--source-branch,--source'
     get_arg default_branch '--default-branch'
-    get_arg configs '--configs,--config,--settings,--setting,--show'
+    get_arg show_detail '--show-detail,--show-full'
+    get_arg show_all '--show-all' "$show_detail"
+    get_arg configs '--configs,--config,--settings,--setting,--show' "$show_all"
     get_arg skip_auto_update '--skip-auto-update,--skip-auto'
     get_arg examples '--examples,--ex,-ex'
     get_arg help '--help,-?,-h' "$examples"
@@ -56,6 +58,7 @@ if [ ! "$smud_main_loaded" ]; then
     get_arg internal_test '--internal-test,-IT,--IT'
     get_arg production '--production,-PROD,--PROD'
     get_arg stage '--stage,-S' '**'
+    get_arg branch_arg '--branch,-B'
 
     if [ "$responsible" ];then
         responsible="$(sed -E 's/(,| |;)/|/g' <<< $responsible)"

@@ -106,7 +106,7 @@ list()
     } || {
         return
     }
-
+    # echo "¤¤¤¤¤ installed: $installed"
     if [ "$installed" ]; then
         product_infos__find_latest_products_with_version "installed"
         product_infos__find_latest_products_with_version "skip-add-new-product"
@@ -114,7 +114,7 @@ list()
         product_infos__find_latest_products_with_version 
     fi
 
-    product_infos__find_latest_products_with_files
+    # product_infos__find_latest_products_with_files
     
     product_infos__print
 }
@@ -335,6 +335,11 @@ product_infos__find_latest_products_with_files()
         stage_product_name="$product_name_files/$product_stage"
         product_info="${product_infos[${stage_product_name}]}"
         if [ ! "$product_info" ]; then
+            echo "******* Not found product_info: $stage_product_name"
+            # create_product_info product_info
+            # product_infos[$stage_product_name]="$product_info"
+            # product_info="${product_infos[${stage_product_name}]}"
+
             # echo "** find-files : $i: file='$file', stage_product_name='$stage_product_name', NO PRODUCT_INFO -- product_name_files=$product_name_files"     
             continue
         fi
@@ -482,7 +487,9 @@ resolve_team_array()
         fi
         teams_resolved="true"
     fi
-
+    # for t in $responsibles; do
+    #     echo "===== TEAM: $t"
+    # done 
 
 }
 
@@ -657,6 +664,7 @@ product_infos__print()
                 # fi
 
                 if [ "$show_files" ]; then
+                    # echo "product_info: $product_info"
                     product_info__get_latest_files product_info files
                 fi
                 
@@ -947,7 +955,7 @@ create_product_info()
     fi
 
     createproductinfo__local_product_info="$product_latest_date|$current_version|$product_latest_version|$product_latest_commit|$product_info_files|$product_info_dependencies|$product_responsible"
-    # echo "create_product_info()...[$product_info_dependencies]"
+    # echo "create_product_info()...[$createproductinfo__local_product_info]"
 }
 
 
@@ -1244,30 +1252,47 @@ append_product_depenencies()
 
 append_product()
 {
+    file_to_append="$1"
+    if [ "$file_to_append" ] && [ $(grep "chartVersion:" -c  <<< $file_to_append) -gt 0 ]; then
+        return
+    fi
+
     if [ "$4" ];then
         local -n appendproduct__return_value="$4"
     fi
 
     appendproduct__return_value="false"
     local product_info_created=0
+    
     if [ ! "$product_info" ] && [ "$stage_product_name" ]; then
-        product_info="${product_infos[${stage_product_name}]}"
+        product_info="${product_infos[${stage_product_name}]}"    
         if [ ! "$product_info" ];then
             if [ "$3" = "false" ];then
                 return 
             fi    
+            # product_info_files=""
+            # product_responsible=""
+            # product_info_dependencies=""
+            # product_latest_version=""
             product_info_created=1
             create_product_info product_info
             product_infos[$stage_product_name]="$product_info"
             appendproduct__return_value="true"
         fi
     fi
+
     if [ $product_info_created -eq 0 ]; then
         product_info__get_latest_version product_info product_latest_version
         product_info__get_dependencies product_info product_info_dependencies
     fi
 
-    file_to_append="$1"
+    if [ ! "${product_infos[${stage_product_name}]}" ]; then
+        old_product_info=$product_info
+        product_info="||||||"
+        product_infos[$stage_product_name]=$product_info
+        # echo "@@@@@ product: $stage_product_name -- MISSING --- product_info: $product_info"    
+        # echo "@@@@@ product: $stage_product_name -- MISSING --- old_product_info: $old_product_info"    
+    fi
 
     if [ ! "$file_to_append" ]; then
         return 
@@ -1281,6 +1306,8 @@ append_product()
     if [ ! "$file_state_to_append" ]; then
         file_state_to_append="A"
     fi
+
+
     regex_stage_product_name=$(echo "$stage_product_name" | sed -e 's/\//\\\//g')
     file_to_append=$(echo "$file_to_append"|sed -e "s/products\\/${regex_stage_product_name}\\///g" )
     
@@ -1292,6 +1319,10 @@ append_product()
     if [ "$appendproduct__return_value" = "false" ]; then
         appendproduct__return_value="$append_product_appendproductfiles__return_value"
     fi
+
+    # echo "@@@@@ product: $stage_product_name -- file_to_append: $file_to_append --- appendproduct__return_value: $appendproduct__return_value"
+    # echo "@@@@@ product: $stage_product_name -- product_info: ${product_infos[${stage_product_name}]}"
+
 }
 
 

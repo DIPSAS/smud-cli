@@ -55,7 +55,7 @@ set_upstream()
 
 set_origin()
 {
-
+    # echo "***** set_origin"
     if [ "$skip_init_feature" ] || [ "$installed" ];then
         return
     fi    
@@ -75,8 +75,29 @@ set_origin()
     else
         println_not_silent "Remote origin '$remote_origin' already set." $gray
     fi
-}
 
+    set_branch_origin
+}
+set_branch_origin()
+{
+    git_config_command="git config --get branch.$current_branch.remote"
+    run_command --command-in-var=git_config_command --return-var=branch_remote_origin --debug-title="Checking if branch.$current_branch.remote exist in git config"
+    if [ ! "$branch_remote_origin" ]; then
+        branch_remote_origin="origin"
+        println_not_silent "Setting branch remote origin to '$branch_remote_origin'" $gray
+        git_config_command="git config --add branch.$current_branch.remote $branch_remote_origin"
+        run_command --command-in-var=git_config_command --force-debug-title='Setting branch remote origin'
+    fi
+
+    git_config_command="git config --get branch.$current_branch.merge"
+    run_command --command-in-var=git_config_command --return-var=branch_remote_merge --debug-title="Checking if branch.$current_branch.merge exist in git config"
+    if [ ! "$branch_remote_merge" ]; then
+        branch_remote_merge="refs/heads/$current_branch"
+        println_not_silent "Setting branch remote merge to '$branch_remote_merge'" $gray
+        git_config_command="git config --add branch.$current_branch.merge $branch_remote_merge"
+        run_command --command-in-var=git_config_command --force-debug-title='Setting branch remote merge'
+    fi
+}
 merge_upstream()
 {
     if [ "$skip_init_feature" ] && [ ! "$merge" ];then
@@ -186,7 +207,7 @@ init()
         fi
         printf "${bold}smud $func${normal}: Initializes local repository and sets ${yellow}upstream, origin remotes, source-branch${normal} and ${yellow}default-branch${normal}\n"
         printf "${yellow}upstream${normal}: \n"
-        printf "  With Only ${green}$func${normal}, ${yellow}upstream${normal} '${bold}$default_upstream${normal}' will be configured if not configured yet. When configured the upstream will be fetched. \n"
+        printf "  With Only ${green}$func${normal}, ${yellow}upstream-url${normal} '${bold}$default_upstream${normal}' AND ${yellow}upstream${normal} ${bold}'upstream/main'${normal} will be configured if not configured yet. When configured the upstream will be fetched. \n"
         printf "  With ${green}$func ${bold}<value>${normal}, ${yellow}upstream${normal} '${bold}<value>${normal}' will be configured before upstream is fetched. \n"
         printf "  With ${green}$func ${bold}${yellow}${bold}--upstream-url <value>${normal}, ${yellow}upstream${normal} '${bold}<value>${normal}' will be configured before upstream is fetched. \n"
         printf "  With ${green}$func ${yellow}${bold}-${normal}, ${yellow}upstream${normal} will be removed. \n"
@@ -208,8 +229,15 @@ init()
     fi
     if [ "$skip_init_feature" ];then
         return
-    fi    
+    fi
 
+    get_arg list_branches '--list-branches,--list'
+    if [ "$list_branches" ]; then
+        echo "Existing git-brances:"
+        git branch 
+        return 
+    fi
+    
     if [ ! "$upstream_url" ]; then
         upstream_url="$1"
         if [ ! "$upstream_url" ]; then
@@ -248,6 +276,7 @@ init()
         fi
     fi
 
+    set_branch_origin
     git__setup_source_config
 
     if [ ! "$remote_origin" ]; then
@@ -261,9 +290,5 @@ init()
     if [ "$run_push" ]; then
         git_push
     fi
-
-    if [ "$configs" ]; then
-        git_config_command="git config -l"
-        run_command --command-in-var git_config_command  --skip-error
-    fi
+    show_configs
 }
